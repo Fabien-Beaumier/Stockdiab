@@ -34,7 +34,7 @@ Sur smartphone, une fenêtre propose d'installer l'application (pas si elle est 
 Paramètres > Thème : automatique (suit le réglage du téléphone), clair ou sombre. Le choix est mémorisé sur l'appareil.
 
 ## Mises à jour
-Modifiez la constante V dans sw.js (stockdiab-v2, etc.) à chaque nouvelle version. Les données IndexedDB ne sont jamais effacées par une mise à jour.
+Modifiez la constante V dans sw.js (stockdiab-v7, etc.) à chaque nouvelle version. L'appli est chargée réseau d'abord (toujours à jour en ligne), puis depuis le cache hors connexion, et la page se recharge seule une fois quand une nouvelle version s'active. Les données IndexedDB ne sont jamais effacées par une mise à jour.
 
 ## Sauvegarde
 Accueil > Exporter (JSON). Vider les données de Chrome, désinstaller l'app ou perdre le téléphone supprime les données : exportez régulièrement.

@@ -76,7 +76,12 @@ function itemForm(it = {}) {
 }
 
 // ---------- Scanner (zxing-wasm, embarqué : fonctionne hors ligne) ----------
-const readBarcodes = window.ZXingWASM ? (ZXingWASM.setZXingModuleOverrides({ locateFile: (p, pre) => p.endsWith('.wasm') ? 'vendor/zxing_reader.wasm' : pre + p }), ZXingWASM.readBarcodes) : null;
+let readBarcodes = null; // zxing-wasm : chargé à la demande, même si index.html est une ancienne version en cache
+const loadReader = () => readBarcodes ? Promise.resolve(readBarcodes) : new Promise(ok => {
+  const init = () => { if (!window.ZXingWASM) return ok(null);
+    ZXingWASM.setZXingModuleOverrides({ locateFile: (p, pre) => p.endsWith('.wasm') ? 'vendor/zxing_reader.wasm' : pre + p }); readBarcodes = ZXingWASM.readBarcodes; ok(readBarcodes); };
+  if (window.ZXingWASM) return init();
+  const s = document.createElement('script'); s.src = 'vendor/zxing-reader.iife.js'; s.onload = init; s.onerror = () => ok(null); document.head.append(s); });
 const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
 function grab(src, w, h, max) { const k = Math.min(1, max / Math.max(w, h)); cv.width = Math.round(w * k); cv.height = Math.round(h * k); cx.drawImage(src, 0, 0, cv.width, cv.height); return cx.getImageData(0, 0, cv.width, cv.height); }
 function scanner() {
@@ -91,20 +96,23 @@ function scanner() {
     if (a) qtyDialog(a, 'in'); else itemForm({ barcode: code, ...(g ? { lot: g.lot, exp: g.exp } : {}) }); }; // lot et péremption proposés, à vérifier
   d.addEventListener('close', () => { done = true; stop(); });
   const msg = d.querySelector('.err');
-  const fail = () => { const c = d.querySelector('#cam'); if (c) c.replaceWith(Object.assign(document.createElement('p'), { className: 'small', textContent: t('Caméra indisponible ou autorisation refusée. Utilisez la saisie manuelle.') })); };
-  d.querySelector('#photo').onchange = async e => { const f = e.target.files[0]; if (!f || !readBarcodes) return;
+  const fail = (k = 'Caméra indisponible ou autorisation refusée. Utilisez la saisie manuelle.') => { const c = d.querySelector('#cam'); if (c) c.replaceWith(Object.assign(document.createElement('p'), { className: 'small', textContent: t(k) })); };
+  d.querySelector('#photo').onchange = async e => { const f = e.target.files[0]; if (!f) return;
     msg.textContent = t('Analyse de la photo…');
-    try { const bmp = await createImageBitmap(f), r = await scanImage(grab(bmp, bmp.width, bmp.height, 2000), readBarcodes);
+    try { const rb = await loadReader(); if (!rb) { msg.textContent = t('Lecteur de codes indisponible. Rechargez la page (une connexion est nécessaire la première fois).'); return; }
+      const bmp = await createImageBitmap(f), r = await scanImage(grab(bmp, bmp.width, bmp.height, 2000), rb);
       if (r) found(r); else msg.textContent = t('Aucun code lisible sur cette photo. Rapprochez-vous et réessayez.'); }
     catch { msg.textContent = t('Aucun code lisible sur cette photo. Rapprochez-vous et réessayez.'); } };
-  if (!readBarcodes || !navigator.mediaDevices?.getUserMedia) return fail();
+  if (!navigator.mediaDevices?.getUserMedia) return fail();
   (async () => { try {
+    const rb = await loadReader(); if (!rb) return fail('Lecteur de codes indisponible. Rechargez la page (une connexion est nécessaire la première fois).');
+    if (done) return;
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
     if (done) return stop();
     const v = d.querySelector('#cam'); v.srcObject = stream; await v.play();
     try { await stream.getVideoTracks()[0].applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch {}
     const tick = async () => { if (done) return;
-      try { const r = await scanImage(grab(v, v.videoWidth, v.videoHeight, 1280), readBarcodes); if (r) return found(r); } catch {}
+      try { const r = await scanImage(grab(v, v.videoWidth, v.videoHeight, 1280), rb); if (r) return found(r); } catch {}
       timer = setTimeout(tick, 150); };
     tick();
   } catch { fail(); } })();
@@ -189,9 +197,12 @@ async function replaceAll(its, mvs) {
 
 // ---------- Démarrage ----------
 (async () => {
+  $('nav').innerHTML = Object.keys(NAV).map(k => `<button data-v="${k}"></button>`).join('');
   try { db = await open(); items = await getAll('items'); moves = await getAll('moves'); }
   catch { $('#main').innerHTML = `<p class="err">${t("Stockage local indisponible (navigation privée ?). L'application ne peut pas enregistrer de données.")}</p>`; return; }
   render();
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator) { const had = !!navigator.serviceWorker.controller; let reloaded = false;
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !reloaded) { reloaded = true; location.reload(); } }); } // nouvelle version : rechargement unique
   navigator.storage?.persist?.(); // demande de stockage persistant (évite l'éviction automatique)
 })();
