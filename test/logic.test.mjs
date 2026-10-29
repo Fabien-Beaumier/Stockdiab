@@ -25,4 +25,9 @@ t('GS1 : GTIN, lot, péremption', () => { const g = parseGS1('010376012345678917
 t('GS1 : codes 1D ordinaires ignorés', () => { assert.equal(parseGS1('3760123456789'), null); assert.equal(parseGS1('hello'), null); });
 t('EAN-13 et GTIN-14 correspondent', () => assert.equal(norm('03760123456789'), norm('3760123456789')));
 t('barre de pourcentage', () => { assert.equal(pct(mk(3, 2, { full: 12 })), 25); assert.equal(pct(mk(5), [{ itemId: 'a', after: 10 }]), 50); assert.equal(pct(mk(0)), 0); assert.equal(pct(mk(20, 2, { full: 10 })), 100); assert.equal(refQty(mk(4)), 4); });
+t('GS1 réel (boîte de stylos) : GTIN, lot, péremption', () => { const g = parseGS1('(01)03400935259097(21)7C15805N(17)280331(10)VZF06N9');
+  assert.deepEqual(g, { gtin: '03400935259097', lot: 'VZF06N9', exp: '2028-03-31' });
+  assert.equal(parseGS1('01034009352590972170C15805N\x1d17280331\x1d10VZF06N9').gtin, '03400935259097'); });
+t('GS1 sans séparateurs : le GTIN reste lu', () => assert.equal(parseGS1('01034009352590972 17C15805N1728033110VZF06N9'.replace(' ', '')).gtin, '03400935259097'));
+t('code produit imprimé (CIP13) = GTIN', () => assert.equal(norm('3400935259097'), norm('03400935259097')));
 console.log(`\n${n} tests réussis`);
