@@ -1,0 +1,76 @@
+// Les clés sont les textes français. Ajouter une langue = ajouter un objet dans D et une entrée dans LANGS.
+export const LANGS = { fr: 'Français', en: 'English', es: 'Español' };
+const D = {
+en: {
+'Thème':'Theme','Automatique (système)':'Automatic (system)','Clair':'Light','Sombre':'Dark',
+'Installer StockDiab':'Install StockDiab','Installer':'Install','Plus tard':'Later',"Ajoutez StockDiab à votre écran d'accueil pour l'ouvrir comme une application, même sans connexion.":'Add StockDiab to your home screen to open it like an app, even offline.',"Pour installer StockDiab : appuyez sur le bouton Partager de Safari, puis sur « Sur l'écran d'accueil ».":'To install StockDiab: tap the Share button in Safari, then "Add to Home Screen".',
+'Stock de référence = 100 % de la barre (facultatif)':'Reference stock = 100% of the bar (optional)','Stock de référence invalide.':'Invalid reference stock.','{p} % du stock de référence ({r})':'{p}% of reference stock ({r})',
+'Accueil':'Home','Mon stock':'My stock','Ajouter':'Add','Historique':'History','Annuler':'Cancel','Valider':'Confirm',
+'Stock suffisant':'Stock OK','Stock faible':'Low stock','Épuisé':'Out of stock','Épuisés':'Out of stock','Entrée':'In','Sortie':'Out','Correction':'Correction',
+'pièce':'piece','boîte':'box','stylo':'pen','fiole':'vial','cartouche':'cartridge','cathéter':'catheter','réservoir':'reservoir','capteur':'sensor','pile':'battery','bandelette':'test strip',
+'Retirer':'Remove','Retirer 1':'Remove 1','Retirer…':'Remove…','Ajouter au stock':'Add to stock','Fiche':'Edit','Quantité actuelle :':'Current quantity:',
+'Quantité à retirer':'Quantity to remove','Quantité reçue':'Quantity received','Note (facultatif)':'Note (optional)',
+'Nouvel article':'New item',"Modifier l'article":'Edit item','Nom du produit':'Product name','Catégorie':'Category','Unité de comptage':'Counting unit','Quantité initiale':'Initial quantity',
+'Quantité (toute modification est enregistrée comme correction)':'Quantity (any change is logged as a correction)',"Seuil d'alerte (alerte si stock ≤ seuil)":'Alert threshold (alert when stock ≤ threshold)',
+'Code-barres (facultatif)':'Barcode (optional)','Date de péremption (facultatif)':'Expiry date (optional)','Numéro de lot (facultatif)':'Lot number (optional)',
+'Consommation moyenne par jour (facultatif, estimation)':'Average use per day (optional, estimate)','Notes':'Notes',
+'Le nom est obligatoire.':'The name is required.','Quantité et seuil : nombres entiers positifs ou nuls.':'Quantity and threshold: whole numbers, zero or more.','Consommation moyenne invalide.':'Invalid average use.',
+'Ce code-barres existe déjà : « {name} ».':'This barcode already exists: "{name}".','Création de la fiche':'Item created','Correction manuelle':'Manual correction','Retrait rapide':'Quick removal',
+'Supprimer cet article':'Delete this item',"Supprimer « {name} » ? L'historique est conservé.":'Delete "{name}"? History is kept.',
+'Quantité invalide : entrez un nombre entier.':'Invalid quantity: enter a whole number.','Retrait impossible : il reste {n} en stock.':'Cannot remove: only {n} left in stock.','Type de mouvement inconnu.':'Unknown movement type.',
+'Scanner un article':'Scan an item','Pointez la caméra arrière vers le code-barres (1D, QR ou Datamatrix), ou saisissez-le à la main.':'Point the rear camera at the code (barcode, QR or Data Matrix), or type it in.',
+'Saisie manuelle du code':'Enter code manually','Saisissez un code ou scannez-le.':'Enter or scan a code.','Valider le code':'Confirm code','Caméra indisponible ou autorisation refusée. Utilisez la saisie manuelle.':'Camera unavailable or permission denied. Use manual entry.',
+"seuil d'alerte : {n}":'alert threshold: {n}','code {c}':'code {c}','Péremption : {d}':'Expiry: {d}',' — PÉRIMÉ':' — EXPIRED',' — bientôt périmé (moins de 30 jours)':' — expires soon (within 30 days)','lot {l}':'lot {l}',
+'Estimation indicative : environ {n} jour(s) de stock':'Rough estimate: about {n} day(s) of stock',
+'références':'items','sous le seuil':'below threshold','épuisés':'out of stock','À racheter':'To restock','Aucun article à réapprovisionner.':'Nothing to restock.','Péremption':'Expiry','Sauvegarde':'Backup',
+"Les données sont stockées uniquement sur ce téléphone. Vider les données du navigateur, désinstaller l'application ou perdre le téléphone les efface. Exportez une sauvegarde régulièrement.":'Data is stored only on this phone. Clearing browser data, uninstalling the app or losing the phone erases it. Export a backup regularly.',
+'Exporter (JSON)':'Export (JSON)','Restaurer…':'Restore…','Effacer toutes les données':'Erase all data','Langue':'Language',
+'Rechercher (nom, catégorie, code-barres)':'Search (name, category, barcode)','Tous':'All','Péremption proche':'Expiring soon','Aucun article.':'No items.',
+'Créer une fiche manuellement':'Create an item manually',"Le code-barres sert uniquement à reconnaître l'article. Quantité, lot et péremption restent à saisir et à vérifier vous-même.":'The code only identifies the item. Quantity, lot and expiry must be entered and checked by you.',
+'Article':'Item','Type':'Type','Aucun mouvement.':'No movements.',
+'Retirer 1 {u} de « {name} » ?':'Remove 1 {u} from "{name}"?','Remplacer toutes les données actuelles par cette sauvegarde ({a} articles, {m} mouvements) ?':'Replace all current data with this backup ({a} items, {m} movements)?',
+'Sauvegarde invalide : fichier illisible.':'Invalid backup: unreadable file.','Effacer TOUTES les données (articles et historique) ? Action irréversible.':'Erase ALL data (items and history)? This cannot be undone.',
+'Erreur de stockage local.':'Local storage error.',"Stockage local indisponible (navigation privée ?). L'application ne peut pas enregistrer de données.":'Local storage unavailable (private browsing?). The app cannot save data.',
+"Sauvegarde invalide : ce fichier n'est pas une sauvegarde StockDiab.":'Invalid backup: this file is not a StockDiab backup.','Sauvegarde invalide : données manquantes.':'Invalid backup: missing data.',
+'Sauvegarde invalide : article mal formé.':'Invalid backup: malformed item.','Sauvegarde invalide : quantités invalides pour « {name} ».':'Invalid backup: invalid quantities for "{name}".','Sauvegarde invalide : mouvement mal formé.':'Invalid backup: malformed movement.'
+},
+es: {
+'Thème':'Tema','Automatique (système)':'Automático (sistema)','Clair':'Claro','Sombre':'Oscuro',
+'Installer StockDiab':'Instalar StockDiab','Installer':'Instalar','Plus tard':'Más tarde',"Ajoutez StockDiab à votre écran d'accueil pour l'ouvrir comme une application, même sans connexion.":'Añada StockDiab a la pantalla de inicio para abrirla como una app, incluso sin conexión.',"Pour installer StockDiab : appuyez sur le bouton Partager de Safari, puis sur « Sur l'écran d'accueil ».":'Para instalar StockDiab: pulse el botón Compartir de Safari y luego «Añadir a pantalla de inicio».',
+'Stock de référence = 100 % de la barre (facultatif)':'Stock de referencia = 100 % de la barra (opcional)','Stock de référence invalide.':'Stock de referencia no válido.','{p} % du stock de référence ({r})':'{p} % del stock de referencia ({r})',
+'Accueil':'Inicio','Mon stock':'Mi stock','Ajouter':'Añadir','Historique':'Historial','Annuler':'Cancelar','Valider':'Confirmar',
+'Stock suffisant':'Stock suficiente','Stock faible':'Stock bajo','Épuisé':'Agotado','Épuisés':'Agotados','Entrée':'Entrada','Sortie':'Salida','Correction':'Corrección',
+'pièce':'pieza','boîte':'caja','stylo':'pluma','fiole':'vial','cartouche':'cartucho','cathéter':'catéter','réservoir':'reservorio','capteur':'sensor','pile':'pila','bandelette':'tira reactiva',
+'Retirer':'Retirar','Retirer 1':'Retirar 1','Retirer…':'Retirar…','Ajouter au stock':'Añadir al stock','Fiche':'Ficha','Quantité actuelle :':'Cantidad actual:',
+'Quantité à retirer':'Cantidad a retirar','Quantité reçue':'Cantidad recibida','Note (facultatif)':'Nota (opcional)',
+'Nouvel article':'Nuevo artículo',"Modifier l'article":'Editar artículo','Nom du produit':'Nombre del producto','Catégorie':'Categoría','Unité de comptage':'Unidad de conteo','Quantité initiale':'Cantidad inicial',
+'Quantité (toute modification est enregistrée comme correction)':'Cantidad (todo cambio se registra como corrección)',"Seuil d'alerte (alerte si stock ≤ seuil)":'Umbral de alerta (alerta si stock ≤ umbral)',
+'Code-barres (facultatif)':'Código de barras (opcional)','Date de péremption (facultatif)':'Fecha de caducidad (opcional)','Numéro de lot (facultatif)':'Número de lote (opcional)',
+'Consommation moyenne par jour (facultatif, estimation)':'Consumo medio diario (opcional, estimación)','Notes':'Notas',
+'Le nom est obligatoire.':'El nombre es obligatorio.','Quantité et seuil : nombres entiers positifs ou nuls.':'Cantidad y umbral: números enteros, cero o más.','Consommation moyenne invalide.':'Consumo medio no válido.',
+'Ce code-barres existe déjà : « {name} ».':'Este código de barras ya existe: «{name}».','Création de la fiche':'Ficha creada','Correction manuelle':'Corrección manual','Retrait rapide':'Retirada rápida',
+'Supprimer cet article':'Eliminar este artículo',"Supprimer « {name} » ? L'historique est conservé.":'¿Eliminar «{name}»? El historial se conserva.',
+'Quantité invalide : entrez un nombre entier.':'Cantidad no válida: introduzca un número entero.','Retrait impossible : il reste {n} en stock.':'No se puede retirar: solo quedan {n} en stock.','Type de mouvement inconnu.':'Tipo de movimiento desconocido.',
+'Scanner un article':'Escanear un artículo','Pointez la caméra arrière vers le code-barres (1D, QR ou Datamatrix), ou saisissez-le à la main.':'Apunte la cámara trasera al código (barras, QR o Data Matrix) o escríbalo a mano.',
+'Saisie manuelle du code':'Introducir código a mano','Saisissez un code ou scannez-le.':'Introduzca o escanee un código.','Valider le code':'Confirmar código','Caméra indisponible ou autorisation refusée. Utilisez la saisie manuelle.':'Cámara no disponible o permiso denegado. Use la entrada manual.',
+"seuil d'alerte : {n}":'umbral de alerta: {n}','code {c}':'código {c}','Péremption : {d}':'Caducidad: {d}',' — PÉRIMÉ':' — CADUCADO',' — bientôt périmé (moins de 30 jours)':' — caduca pronto (menos de 30 días)','lot {l}':'lote {l}',
+'Estimation indicative : environ {n} jour(s) de stock':'Estimación orientativa: unos {n} día(s) de stock',
+'références':'referencias','sous le seuil':'bajo el umbral','épuisés':'agotados','À racheter':'Por reponer','Aucun article à réapprovisionner.':'Nada que reponer.','Péremption':'Caducidad','Sauvegarde':'Copia de seguridad',
+"Les données sont stockées uniquement sur ce téléphone. Vider les données du navigateur, désinstaller l'application ou perdre le téléphone les efface. Exportez une sauvegarde régulièrement.":'Los datos se guardan solo en este teléfono. Borrar los datos del navegador, desinstalar la app o perder el teléfono los elimina. Exporte una copia con regularidad.',
+'Exporter (JSON)':'Exportar (JSON)','Restaurer…':'Restaurar…','Effacer toutes les données':'Borrar todos los datos','Langue':'Idioma',
+'Rechercher (nom, catégorie, code-barres)':'Buscar (nombre, categoría, código de barras)','Tous':'Todos','Péremption proche':'Caducidad próxima','Aucun article.':'Ningún artículo.',
+'Créer une fiche manuellement':'Crear una ficha manualmente',"Le code-barres sert uniquement à reconnaître l'article. Quantité, lot et péremption restent à saisir et à vérifier vous-même.":'El código solo identifica el artículo. Cantidad, lote y caducidad debe introducirlos y comprobarlos usted.',
+'Article':'Artículo','Type':'Tipo','Aucun mouvement.':'Ningún movimiento.',
+'Retirer 1 {u} de « {name} » ?':'¿Retirar 1 {u} de «{name}»?','Remplacer toutes les données actuelles par cette sauvegarde ({a} articles, {m} mouvements) ?':'¿Reemplazar todos los datos actuales por esta copia ({a} artículos, {m} movimientos)?',
+'Sauvegarde invalide : fichier illisible.':'Copia no válida: archivo ilegible.','Effacer TOUTES les données (articles et historique) ? Action irréversible.':'¿Borrar TODOS los datos (artículos e historial)? No se puede deshacer.',
+'Erreur de stockage local.':'Error de almacenamiento local.',"Stockage local indisponible (navigation privée ?). L'application ne peut pas enregistrer de données.":'Almacenamiento local no disponible (¿navegación privada?). La app no puede guardar datos.',
+"Sauvegarde invalide : ce fichier n'est pas une sauvegarde StockDiab.":'Copia no válida: este archivo no es una copia de StockDiab.','Sauvegarde invalide : données manquantes.':'Copia no válida: faltan datos.',
+'Sauvegarde invalide : article mal formé.':'Copia no válida: artículo mal formado.','Sauvegarde invalide : quantités invalides pour « {name} ».':'Copia no válida: cantidades no válidas para «{name}».','Sauvegarde invalide : mouvement mal formé.':'Copia no válida: movimiento mal formado.'
+}};
+let lang = 'fr';
+try { const s = localStorage.getItem('sd-lang') || (navigator.language || 'fr').slice(0, 2); if (LANGS[s]) lang = s; } catch {}
+if (typeof document !== 'undefined') document.documentElement.lang = lang;
+export const getLang = () => lang;
+export const setLang = l => { lang = l; document.documentElement.lang = l; try { localStorage.setItem('sd-lang', l); } catch {} };
+export const locale = () => ({ fr: 'fr-FR', en: 'en-GB', es: 'es-ES' })[lang];
+export const t = (s, v = {}) => (D[lang]?.[s] || s).replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m);

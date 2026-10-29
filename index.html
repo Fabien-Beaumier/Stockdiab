@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1f4d3a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="StockDiab">
+<link rel="stylesheet" href="styles.css">
+<script>try{var m=localStorage.getItem('sd-theme');if(m)document.documentElement.dataset.theme=m}catch(e){}</script>
+<title>StockDiab</title>
+</head>
+<body>
+<header><h1>StockDiab</h1></header>
+<main id="main" aria-live="polite"></main>
+<nav aria-label="Navigation principale">
+  <button data-v="home">Accueil</button>
+  <button data-v="stock">Mon stock</button>
+  <button data-v="add">Ajouter</button>
+  <button data-v="hist">Historique</button>
+</nav>
+<script src="vendor/html5-qrcode.min.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
