@@ -1,1 +1,13 @@
-{"name":"stockdiab","version":"1.0.0","type":"module","private":true,"scripts":{"test":"node test/logic.test.mjs","start":"python3 -m http.server 8080"},"dependencies":{"html5-qrcode":"2.3.8"}}
+{
+ "name": "stockdiab",
+ "version": "1.0.0",
+ "type": "module",
+ "private": true,
+ "scripts": {
+  "test": "node test/logic.test.mjs",
+  "start": "python3 -m http.server 8080"
+ },
+ "dependencies": {
+  "zxing-wasm": "3.1.6"
+ }
+}

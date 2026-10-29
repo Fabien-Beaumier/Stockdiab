@@ -1,5 +1,6 @@
 import { esc, status, expiry, daysLeft, applyMove, validateBackup, uid, err, norm, parseGS1, refQty, pct } from './logic.js';
 import './install.js';
+import { scanImage } from './decode.js';
 import { t, LANGS, getLang, setLang, locale } from './i18n.js';
 const getTheme = () => { try { return localStorage.getItem('sd-theme') || ''; } catch { return ''; } };
 const setTheme = v => { const r = document.documentElement; v ? r.dataset.theme = v : delete r.dataset.theme; try { v ? localStorage.setItem('sd-theme', v) : localStorage.removeItem('sd-theme'); } catch {} };
@@ -7,7 +8,7 @@ const em = x => t(x.tpl || x.message, x.vars); // message d'erreur traduit
 const $ = s => document.querySelector(s);
 const LBL = { ok: 'Stock suffisant', low: 'Stock faible', out: 'Épuisé' };
 const TYPE = { in: 'Entrée', out: 'Sortie', fix: 'Correction' };
-const NAV = { home: 'Accueil', stock: 'Mon stock', add: 'Ajouter', hist: 'Historique' };
+const NAV = { home: 'Accueil', stock: 'Mon stock', add: 'Ajouter', hist: 'Historique', settings: 'Paramètres' };
 const UNITS = ['pièce','boîte','stylo','fiole','cartouche','cathéter','réservoir','capteur','pile','bandelette'];
 let db, items = [], moves = [], view = 'home', flt = 'all', q = '', hItem = '', hType = '', busy = false;
 
@@ -74,22 +75,39 @@ function itemForm(it = {}) {
     d.querySelector('form').insertBefore(b, d.querySelector('.err')); }
 }
 
-// ---------- Scanner ----------
+// ---------- Scanner (zxing-wasm, embarqué : fonctionne hors ligne) ----------
+const readBarcodes = window.ZXingWASM ? (ZXingWASM.setZXingModuleOverrides({ locateFile: (p, pre) => p.endsWith('.wasm') ? 'vendor/zxing_reader.wasm' : pre + p }), ZXingWASM.readBarcodes) : null;
+const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
+function grab(src, w, h, max) { const k = Math.min(1, max / Math.max(w, h)); cv.width = Math.round(w * k); cv.height = Math.round(h * k); cx.drawImage(src, 0, 0, cv.width, cv.height); return cx.getImageData(0, 0, cv.width, cv.height); }
 function scanner() {
-  let sc, done = false;
-  const d = modal(t('Scanner un article'), `<div id="reader"></div><p class="small">${t('Pointez la caméra arrière vers le code-barres (1D, QR ou Datamatrix), ou saisissez-le à la main.')}</p>` + F(t('Saisie manuelle du code'), 'code', '', 'text', 'inputmode="numeric"'),
+  let stream, done = false, timer;
+  const d = modal(t('Scanner un article'), `<video id="cam" playsinline muted></video><p class="small">${t('Pointez la caméra arrière vers le code (code-barres, QR ou Datamatrix) et gardez-la nette.')}</p>
+    <label>${t('Ou prenez une photo du code')}<input type="file" id="photo" accept="image/*" capture="environment"></label>` + F(t('Saisie manuelle du code'), 'code', '', 'text', 'inputmode="numeric"'),
     async v => { if (!v.code.trim()) throw err('Saisissez un code ou scannez-le.'); found(v.code.trim()); }, 'Valider le code');
-  const stop = () => sc && sc.isScanning ? sc.stop().catch(() => {}) : 0;
+  const stop = () => { clearTimeout(timer); stream?.getTracks().forEach(x => x.stop()); };
   const found = raw => { if (done) return; done = true; stop(); d.close();
-    const g = parseGS1(raw), code = g ? g.gtin : raw; // Datamatrix GS1 : on reconnaît l'article par son GTIN
+    const g = parseGS1(raw), code = g ? g.gtin : raw; // Datamatrix GS1 : l'article est reconnu par son GTIN
     const a = items.find(x => x.barcode && norm(x.barcode) === norm(code));
-    if (a) qtyDialog(a, 'in'); else itemForm({ barcode: code, ...(g ? { lot: g.lot, exp: g.exp } : {}) }); }; // lot/péremption proposés, à vérifier
-  d.addEventListener('close', stop);
-  if (!window.Html5Qrcode) return;
-  const Fm = Html5QrcodeSupportedFormats;
-  sc = new Html5Qrcode('reader', { formatsToSupport: [Fm.DATA_MATRIX, Fm.QR_CODE, Fm.EAN_13, Fm.EAN_8, Fm.UPC_A, Fm.UPC_E, Fm.CODE_128, Fm.CODE_39, Fm.ITF] });
-  sc.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 250, height: 250 } }, found, () => {})
-    .catch(() => { d.querySelector('#reader').outerHTML = `<p class="small">${t('Caméra indisponible ou autorisation refusée. Utilisez la saisie manuelle.')}</p>`; });
+    if (a) qtyDialog(a, 'in'); else itemForm({ barcode: code, ...(g ? { lot: g.lot, exp: g.exp } : {}) }); }; // lot et péremption proposés, à vérifier
+  d.addEventListener('close', () => { done = true; stop(); });
+  const msg = d.querySelector('.err');
+  const fail = () => { const c = d.querySelector('#cam'); if (c) c.replaceWith(Object.assign(document.createElement('p'), { className: 'small', textContent: t('Caméra indisponible ou autorisation refusée. Utilisez la saisie manuelle.') })); };
+  d.querySelector('#photo').onchange = async e => { const f = e.target.files[0]; if (!f || !readBarcodes) return;
+    msg.textContent = t('Analyse de la photo…');
+    try { const bmp = await createImageBitmap(f), r = await scanImage(grab(bmp, bmp.width, bmp.height, 2000), readBarcodes);
+      if (r) found(r); else msg.textContent = t('Aucun code lisible sur cette photo. Rapprochez-vous et réessayez.'); }
+    catch { msg.textContent = t('Aucun code lisible sur cette photo. Rapprochez-vous et réessayez.'); } };
+  if (!readBarcodes || !navigator.mediaDevices?.getUserMedia) return fail();
+  (async () => { try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+    if (done) return stop();
+    const v = d.querySelector('#cam'); v.srcObject = stream; await v.play();
+    try { await stream.getVideoTracks()[0].applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch {}
+    const tick = async () => { if (done) return;
+      try { const r = await scanImage(grab(v, v.videoWidth, v.videoHeight, 1280), readBarcodes); if (r) return found(r); } catch {}
+      timer = setTimeout(tick, 150); };
+    tick();
+  } catch { fail(); } })();
 }
 
 // ---------- Vues ----------
@@ -116,11 +134,7 @@ function render() {
     ${ex.length ? `<h2>${t('Péremption')}</h2>${ex.map(card).join('')}` : ''}
     <h2>${t('Sauvegarde')}</h2><p class="small">${t("Les données sont stockées uniquement sur ce téléphone. Vider les données du navigateur, désinstaller l'application ou perdre le téléphone les efface. Exportez une sauvegarde régulièrement.")}</p>
     <div class="row"><button class="primary" data-a="export">${t('Exporter (JSON)')}</button><button class="ghost" data-a="import">${t('Restaurer…')}</button></div><button class="ghost danger big" data-a="wipe">${t('Effacer toutes les données')}</button>
-    <h2>${t('Langue')}</h2><select id="lang" aria-label="${t('Langue')}">${Object.entries(LANGS).map(([k, v]) => `<option value="${k}" ${k === getLang() ? 'selected' : ''}>${v}</option>`).join('')}</select>
-    <h2>${t('Thème')}</h2><select id="theme" aria-label="${t('Thème')}">${[['', 'Automatique (système)'], ['light', 'Clair'], ['dark', 'Sombre']].map(([k, l]) => `<option value="${k}" ${k === getTheme() ? 'selected' : ''}>${t(l)}</option>`).join('')}</select>
     <input type="file" id="file" accept="application/json,.json" hidden>`;
-    $('#lang').onchange = e => { setLang(e.target.value); render(); };
-    $('#theme').onchange = e => setTheme(e.target.value);
   } else if (view === 'stock') {
     const k = q.toLowerCase();
     const list = items.filter(a => (!k || [a.name, a.cat, a.barcode].some(x => (x || '').toLowerCase().includes(k))) &&
@@ -132,13 +146,18 @@ function render() {
   } else if (view === 'add') {
     m.innerHTML = `<button class="primary big" data-a="scan">${t('Scanner un article')}</button><button class="ghost big" data-a="new">${t('Créer une fiche manuellement')}</button>
     <p class="small">${t("Le code-barres sert uniquement à reconnaître l'article. Quantité, lot et péremption restent à saisir et à vérifier vous-même.")}</p>`;
-  } else {
+  } else if (view === 'hist') {
     const names = [...new Map(moves.map(x => [x.itemId, x.name]))];
     const list = moves.filter(x => (!hItem || x.itemId === hItem) && (!hType || x.type === hType)).sort((a, b) => b.at.localeCompare(a.at));
     m.innerHTML = `<label>${t('Article')}<select id="hi"><option value="">${t('Tous')}</option>${names.map(([id, n]) => `<option value="${esc(id)}" ${id === hItem ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
     <label>${t('Type')}<select id="ht"><option value="">${t('Tous')}</option>${Object.entries(TYPE).map(([k, v]) => `<option value="${k}" ${k === hType ? 'selected' : ''}>${t(v)}</option>`).join('')}</select></label>
     ${list.length ? list.map(x => `<article class="card"><div class="top"><h3>${esc(x.name)}</h3><span class="tag">${t(TYPE[x.type])}</span></div><p class="small">${x.type === 'fix' ? t('Correction') : (x.type === 'in' ? '+' : '−') + x.qty} · ${x.before} → ${x.after} · ${new Date(x.at).toLocaleString(locale())}${x.note ? ' · ' + esc(x.note) : ''}</p></article>`).join('') : `<p class="small">${t('Aucun mouvement.')}</p>`}`;
-    $('#hi').onchange = e => { hItem = e.target.value; render(); }; $('#ht').onchange = e => { hType = e.target.value; render(); };
+    $('#hi').onchange = e => { hItem = e.target.value; render(); }; $('#ht').onchange = e => { hType = e.target.value; render(); };  } else {
+    m.innerHTML = `<h2>${t('Langue')}</h2><select id="lang" aria-label="${t('Langue')}">${Object.entries(LANGS).map(([k, v]) => `<option value="${k}" ${k === getLang() ? 'selected' : ''}>${v}</option>`).join('')}</select>
+    <h2>${t('Thème')}</h2><select id="theme" aria-label="${t('Thème')}">${[['', 'Automatique (système)'], ['light', 'Clair'], ['dark', 'Sombre']].map(([k, l]) => `<option value="${k}" ${k === getTheme() ? 'selected' : ''}>${t(l)}</option>`).join('')}</select>
+    <h2>${t('Soutenir le projet')}</h2><a class="primary big" href="https://paypal.me/FabienBeaumier" target="_blank" rel="noopener noreferrer">Buy me a coffee</a>`;
+    $('#lang').onchange = e => { setLang(e.target.value); render(); };
+    $('#theme').onchange = e => setTheme(e.target.value);
   }
 }
 

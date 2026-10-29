@@ -2,6 +2,7 @@
 export const LANGS = { fr: 'Français', en: 'English', es: 'Español' };
 const D = {
 en: {
+'Paramètres':'Settings','Soutenir le projet':'Support the project','Pointez la caméra arrière vers le code (code-barres, QR ou Datamatrix) et gardez-la nette.':'Point the rear camera at the code (barcode, QR or Data Matrix) and hold it steady.','Ou prenez une photo du code':'Or take a photo of the code','Analyse de la photo…':'Analysing photo…','Aucun code lisible sur cette photo. Rapprochez-vous et réessayez.':'No readable code in this photo. Move closer and try again.',
 'Thème':'Theme','Automatique (système)':'Automatic (system)','Clair':'Light','Sombre':'Dark',
 'Installer StockDiab':'Install StockDiab','Installer':'Install','Plus tard':'Later',"Ajoutez StockDiab à votre écran d'accueil pour l'ouvrir comme une application, même sans connexion.":'Add StockDiab to your home screen to open it like an app, even offline.',"Pour installer StockDiab : appuyez sur le bouton Partager de Safari, puis sur « Sur l'écran d'accueil ».":'To install StockDiab: tap the Share button in Safari, then "Add to Home Screen".',
 'Stock de référence = 100 % de la barre (facultatif)':'Reference stock = 100% of the bar (optional)','Stock de référence invalide.':'Invalid reference stock.','{p} % du stock de référence ({r})':'{p}% of reference stock ({r})',
@@ -35,6 +36,7 @@ en: {
 'Sauvegarde invalide : article mal formé.':'Invalid backup: malformed item.','Sauvegarde invalide : quantités invalides pour « {name} ».':'Invalid backup: invalid quantities for "{name}".','Sauvegarde invalide : mouvement mal formé.':'Invalid backup: malformed movement.'
 },
 es: {
+'Paramètres':'Ajustes','Soutenir le projet':'Apoya el proyecto','Pointez la caméra arrière vers le code (code-barres, QR ou Datamatrix) et gardez-la nette.':'Apunte la cámara trasera al código (barras, QR o Data Matrix) y manténgala quieta.','Ou prenez une photo du code':'O tome una foto del código','Analyse de la photo…':'Analizando la foto…','Aucun code lisible sur cette photo. Rapprochez-vous et réessayez.':'No se pudo leer ningún código en esta foto. Acérquese e inténtelo de nuevo.',
 'Thème':'Tema','Automatique (système)':'Automático (sistema)','Clair':'Claro','Sombre':'Oscuro',
 'Installer StockDiab':'Instalar StockDiab','Installer':'Instalar','Plus tard':'Más tarde',"Ajoutez StockDiab à votre écran d'accueil pour l'ouvrir comme une application, même sans connexion.":'Añada StockDiab a la pantalla de inicio para abrirla como una app, incluso sin conexión.',"Pour installer StockDiab : appuyez sur le bouton Partager de Safari, puis sur « Sur l'écran d'accueil ».":'Para instalar StockDiab: pulse el botón Compartir de Safari y luego «Añadir a pantalla de inicio».',
 'Stock de référence = 100 % de la barre (facultatif)':'Stock de referencia = 100 % de la barra (opcional)','Stock de référence invalide.':'Stock de referencia no válido.','{p} % du stock de référence ({r})':'{p} % del stock de referencia ({r})',

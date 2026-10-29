@@ -55,13 +55,14 @@ export const norm = c => /^\d+$/.test(c) ? c.replace(/^0+/, '') : c;
 const FIX = { '01': 14, '11': 6, '15': 6, '17': 6 }, VAR = ['10', '21'], GS = '\x1d';
 export function parseGS1(raw) {
   let s = String(raw).trim().replace(/^\]d2/i, '').replace(/\((\d{2})\)/g, GS + '$1').replace(/^\x1d/, '');
+  if (!/^01\d{14}/.test(s)) return null;
   const o = {};
   while (s) {
     const ai = s.slice(0, 2);
     if (s[0] === GS) s = s.slice(1);
     else if (FIX[ai]) { o[ai] = s.slice(2, 2 + FIX[ai]); s = s.slice(2 + FIX[ai]); }
     else if (VAR.includes(ai)) { const i = s.indexOf(GS); o[ai] = i < 0 ? s.slice(2) : s.slice(2, i); s = i < 0 ? '' : s.slice(i); }
-    else return null;
+    else break; // AI inconnu : on garde ce qui est déjà lu
   }
   if (!/^\d{14}$/.test(o['01'] || '')) return null;
   let exp = '';

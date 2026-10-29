@@ -5,7 +5,8 @@ PWA de gestion de stock de matériel personnel. Interface en français, données
 ## Structure
 - index.html, styles.css, app.js (interface), logic.js (règles de stock, testées)
 - sw.js (cache hors ligne), manifest.webmanifest, icons/
-- vendor/html5-qrcode.min.js (scanner embarqué, version 2.3.8, aucun CDN)
+- decode.js (prétraitement des images du scanner), install.js, i18n.js
+- vendor/ : zxing-wasm 3.1.6 (lecteur de codes embarqué, aucun CDN)
 - test/logic.test.mjs
 
 ## Exécution locale
@@ -30,7 +31,7 @@ Sur smartphone, une fenêtre propose d'installer l'application (pas si elle est 
 - iOS : Apple ne permet pas de déclencher l'installation. La fenêtre explique la marche à suivre dans Safari (Partager, puis « Sur l'écran d'accueil »).
 
 ## Mode sombre
-Accueil > Thème : automatique (suit le réglage du téléphone), clair ou sombre. Le choix est mémorisé sur l'appareil.
+Paramètres > Thème : automatique (suit le réglage du téléphone), clair ou sombre. Le choix est mémorisé sur l'appareil.
 
 ## Mises à jour
 Modifiez la constante V dans sw.js (stockdiab-v2, etc.) à chaque nouvelle version. Les données IndexedDB ne sont jamais effacées par une mise à jour.
@@ -39,12 +40,15 @@ Modifiez la constante V dans sw.js (stockdiab-v2, etc.) à chaque nouvelle versi
 Accueil > Exporter (JSON). Vider les données de Chrome, désinstaller l'app ou perdre le téléphone supprime les données : exportez régulièrement.
 
 ## Dépendances
-html5-qrcode 2.3.8 (embarquée). Aucune autre.
+zxing-wasm 3.1.6 (embarquée dans vendor/). Aucune autre.
 
 ## Scanner et langues
-- Lit les codes-barres 1D, QR et Datamatrix. Pour un Datamatrix GS1, l'article est reconnu par son GTIN ; lot et péremption sont proposés dans la fiche, à vérifier.
-- Langues : français, anglais, espagnol (Accueil > Langue). Pour en ajouter une, compléter i18n.js.
+- Lit les codes-barres 1D, QR et Datamatrix, y compris les Datamatrix pointillés gravés sur les boîtes de médicaments (l'image est réduite et légèrement floutée avant lecture). Si la lecture en direct échoue, « Ou prenez une photo du code » analyse une photo. Pour un Datamatrix GS1, l'article est reconnu par son GTIN ; lot et péremption sont proposés dans la fiche, à vérifier.
+- Langues : français, anglais, espagnol (Paramètres > Langue). Pour en ajouter une, compléter i18n.js.
 - Barre de pourcentage : quantité restante rapportée au « stock de référence » saisi dans la fiche, sinon au plus haut niveau atteint.
+
+## Soutien
+Paramètres > Buy me a coffee ouvre paypal.me/FabienBeaumier (seul lien externe de l'application, utilisé uniquement au clic).
 
 ## Limites connues
 - Un lot = une fiche : pour des lots à péremptions différentes, créez une fiche par lot (même nom, codes-barres distincts ou vides). Un même code-barres ne peut servir qu'à une fiche.

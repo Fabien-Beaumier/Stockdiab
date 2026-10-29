@@ -1,6 +1,6 @@
 // Cache de l'application uniquement : les données (IndexedDB) ne sont jamais touchées.
-const V = 'stockdiab-v4';
-const FILES = ['./','index.html','styles.css','app.js','logic.js','i18n.js','install.js','manifest.webmanifest','vendor/html5-qrcode.min.js','icons/icon-192.png','icons/icon-512.png'];
+const V = 'stockdiab-v5';
+const FILES = ['./','index.html','styles.css','app.js','logic.js','i18n.js','install.js','manifest.webmanifest','decode.js','vendor/zxing-reader.iife.js','vendor/zxing_reader.wasm','icons/icon-192.png','icons/icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== V).map(x => caches.delete(x)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
