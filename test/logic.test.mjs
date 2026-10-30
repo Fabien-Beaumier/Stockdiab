@@ -30,4 +30,7 @@ t('GS1 réel (boîte de stylos) : GTIN, lot, péremption', () => { const g = par
   assert.equal(parseGS1('01034009352590972170C15805N\x1d17280331\x1d10VZF06N9').gtin, '03400935259097'); });
 t('GS1 sans séparateurs : le GTIN reste lu', () => assert.equal(parseGS1('01034009352590972 17C15805N1728033110VZF06N9'.replace(' ', '')).gtin, '03400935259097'));
 t('code produit imprimé (CIP13) = GTIN', () => assert.equal(norm('3400935259097'), norm('03400935259097')));
+t('sauvegarde avec ordonnances', () => { const base = { app: 'stockdiab', items: [], moves: [] }, p = 'data:image/jpeg;base64,/9j/AAAA';
+  assert.equal(validateBackup({ ...base, docs: [{ id: 'd', pages: [p] }] }).docs.length, 1); validateBackup({ ...base });
+  for (const docs of [[{ id: 'd', pages: [] }], [{ id: 'd', pages: ['javascript:alert(1)'] }], [{ id: 'd', pages: ['data:text/html;base64,AAAA'] }], 'x']) assert.throws(() => validateBackup({ ...base, docs })); });
 console.log(`\n${n} tests réussis`);
