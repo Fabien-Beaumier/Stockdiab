@@ -50,6 +50,9 @@ zxing-wasm 3.1.6 (embarquée dans vendor/). Aucune autre.
 ## Soutien
 Paramètres > Buy me a coffee ouvre paypal.me/FabienBeaumier (seul lien externe de l'application, utilisé uniquement au clic).
 
+## Ordonnances
+Mon stock > Mes ordonnances > Scanner une ordonnance : photo (appareil photo) ou image/PDF existant, plusieurs pages possibles, titre, date et notes. Tout reste dans IndexedDB sur l'appareil (images réduites à 1800 px, JPEG). L'export JSON de sauvegarde contient aussi les ordonnances (en base64), donc il grossit. Pas de recadrage automatique ni de reconnaissance de texte. Les ordonnances ne sont pas chiffrées : verrouillage d'écran recommandé.
+
 ## À propos et mentions légales
 Paramètres > À propos : présentation, contact, mentions légales, données personnelles, responsabilité. L'année du copyright se met à jour automatiquement. Si vous changez d'hébergeur, modifiez la ligne « Hébergement » dans app.js (fonction about) et ses traductions dans i18n.js.
 

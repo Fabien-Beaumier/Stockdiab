@@ -44,6 +44,11 @@ export function validateBackup(o) {
   for (const m of o.moves) {
     if (typeof m.id !== 'string' || !['in', 'out', 'fix'].includes(m.type) || !Number.isInteger(m.before) || !Number.isInteger(m.after)) bad('mouvement mal formé.');
   }
+  if (o.docs !== undefined) {
+    if (!Array.isArray(o.docs)) bad('données manquantes.');
+    for (const d of o.docs) if (typeof d.id !== 'string' || !Array.isArray(d.pages) || !d.pages.length ||
+      d.pages.some(p => typeof p !== 'string' || !/^data:(image\/(jpeg|png|webp|gif)|application\/pdf);base64,/.test(p))) bad('ordonnance mal formée.');
+  }
   return o;
 }
 

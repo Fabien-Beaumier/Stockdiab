@@ -13,11 +13,11 @@ const UNITS = ['pièce','boîte','stylo','fiole','cartouche','cathéter','réser
 let db, items = [], moves = [], view = 'home', flt = 'all', q = '', hItem = '', hType = '', busy = false;
 
 // ---------- Stockage IndexedDB ----------
-const open = () => new Promise((ok, ko) => { const r = indexedDB.open('stockdiab', 1);
-  r.onupgradeneeded = () => { r.result.createObjectStore('items', { keyPath: 'id' }); r.result.createObjectStore('moves', { keyPath: 'id' }); };
+const open = () => new Promise((ok, ko) => { const r = indexedDB.open('stockdiab', 2);
+  r.onupgradeneeded = () => { for (const n of ['items', 'moves', 'docs']) if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, { keyPath: 'id' }); }; // les données existantes sont conservées
   r.onsuccess = () => ok(r.result); r.onerror = () => ko(r.error); });
 const getAll = s => new Promise((ok, ko) => { const r = db.transaction(s).objectStore(s).getAll(); r.onsuccess = () => ok(r.result); r.onerror = () => ko(r.error); });
-const write = fn => new Promise((ok, ko) => { const t = db.transaction(['items', 'moves'], 'readwrite'); fn(t.objectStore('items'), t.objectStore('moves')); t.oncomplete = ok; t.onerror = t.onabort = () => ko(err('Erreur de stockage local.')); });
+const write = fn => new Promise((ok, ko) => { const t = db.transaction(['items', 'moves', 'docs'], 'readwrite'); fn(t.objectStore('items'), t.objectStore('moves'), t.objectStore('docs')); t.oncomplete = ok; t.onerror = t.onabort = () => ko(err('Erreur de stockage local.')); });
 async function commit(item, mv) { // écriture atomique article + mouvement
   await write((i, m) => { i.put(item); if (mv) m.put(mv); });
   items = [...items.filter(x => x.id !== item.id), item]; if (mv) moves.push(mv); render();
@@ -129,7 +129,7 @@ function about() {
     <p>${t('Éditeur : Fabien Beaumier, développeur indépendant. Contact :')} ${mail}</p>
     ${P("Hébergement : Netlify, Inc. (netlify.com). L'hébergeur peut conserver des journaux techniques standard (par exemple l'adresse IP) lors du chargement de l'application.")}
     <h3>${t('Données personnelles')}</h3>
-    ${P("Aucune donnée n'est collectée ni transmise à un serveur : vos articles et votre historique restent sur cet appareil. Aucun compte, aucun suivi, aucune publicité. Seuls la langue et le thème choisis sont mémorisés localement. Le bouton « Buy me a coffee » ouvre un site tiers (PayPal), soumis à ses propres conditions.")}
+    ${P("Aucune donnée n'est collectée ni transmise à un serveur : vos articles, votre historique et vos ordonnances restent sur cet appareil, sans chiffrement : protégez votre téléphone par un verrouillage d'écran. Aucun compte, aucun suivi, aucune publicité. Seuls la langue et le thème choisis sont mémorisés localement. Le bouton « Buy me a coffee » ouvre un site tiers (PayPal), soumis à ses propres conditions.")}
     <h3>${t('Responsabilité')}</h3>
     ${P("L'application est fournie « en l'état », sans garantie. Vérifiez vous-même vos quantités, lots et dates de péremption : les estimations sont indicatives. L'éditeur n'est pas responsable des pertes de données (exportez régulièrement une sauvegarde) ni des décisions prises à partir de l'application.")}
     <h3>${t('Composants tiers')}</h3>
@@ -137,6 +137,54 @@ function about() {
     <p class="small">© ${new Date().getFullYear()} Fabien Beaumier</p>
     <div class="row"><button class="primary" type="button">${t('Fermer')}</button></div>`;
   document.body.append(d); d.showModal(); d.querySelector('button').onclick = () => d.close(); d.onclose = () => d.remove();
+}
+
+// ---------- Ordonnances (photos/PDF stockés localement dans IndexedDB, jamais envoyés) ----------
+let docs = [], urls = [], stockTab = 'items';
+const toDataURL = b => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => ko(r.error); r.readAsDataURL(b); });
+const fromDataURL = u => fetch(u).then(r => r.blob());
+async function shrink(file) { // image -> JPEG réduit (1800 px max) ; PDF conservé tel quel
+  if (file.type === 'application/pdf') return file;
+  try { const b = await createImageBitmap(file), k = Math.min(1, 1800 / Math.max(b.width, b.height)), c = document.createElement('canvas');
+    c.width = Math.round(b.width * k); c.height = Math.round(b.height * k); c.getContext('2d').drawImage(b, 0, 0, c.width, c.height);
+    return await new Promise((ok, ko) => c.toBlob(x => x ? ok(x) : ko(), 'image/jpeg', 0.82)); }
+  catch { throw err('Impossible de lire cette image.'); }
+}
+const segBar = () => `<div class="chips" role="group">${[['items', 'Matériel'], ['docs', 'Mes ordonnances']].map(([v, l]) => `<button data-s="${v}" aria-pressed="${stockTab === v}">${t(l)}</button>`).join('')}</div>`;
+function docCard(d) {
+  const u = d.pages[0].type === 'application/pdf' ? '' : URL.createObjectURL(d.pages[0]); if (u) urls.push(u);
+  return `<article class="card"><div class="top"><h3>${esc(d.title)}</h3><span class="tag">${t('{n} page(s)', { n: d.pages.length })}</span></div>
+  ${u ? `<img class="thumbimg" src="${u}" alt="">` : ''}${d.date ? `<p class="small">${esc(new Date(d.date + 'T00:00').toLocaleDateString(locale()))}</p>` : ''}${d.note ? `<p class="small">${esc(d.note)}</p>` : ''}
+  <div class="row"><button data-a="doc-view" data-id="${d.id}">${t('Voir')}</button><button data-a="doc-edit" data-id="${d.id}">${t('Modifier')}</button><button class="danger" data-a="doc-del" data-id="${d.id}">${t('Supprimer')}</button></div></article>`;
+}
+function docForm(doc) {
+  const isNew = !doc, pages = doc ? [...doc.pages] : []; let tmp = [];
+  const d = modal(t(isNew ? 'Scanner une ordonnance' : "Modifier l'ordonnance"),
+    F(t('Titre'), 'title', doc?.title || t('Ordonnance'), 'text', 'required maxlength="80"') + F(t("Date de l'ordonnance (facultatif)"), 'date', doc?.date || '', 'date') +
+    `<label>${t('Notes')}<textarea name="note" maxlength="500">${esc(doc?.note)}</textarea></label><div id="thumbs" class="thumbs"></div>
+     <label>${t("Photographier l'ordonnance")}<input type="file" id="cam" accept="image/*" capture="environment"></label>
+     <label>${t('Choisir une image ou un PDF')}<input type="file" id="pick" accept="image/*,application/pdf" multiple></label>`,
+    async v => { if (!pages.length) throw err('Ajoutez au moins une page.');
+      const now = new Date().toISOString(), rec = { id: doc?.id || uid(), title: v.title.trim() || t('Ordonnance'), date: v.date, note: v.note.trim(), pages: [...pages], created: doc?.created || now, updated: now };
+      await write((i, m, dc) => dc.put(rec)); docs = [...docs.filter(x => x.id !== rec.id), rec]; render(); });
+  const draw = () => { tmp.forEach(u => URL.revokeObjectURL(u)); tmp = pages.map(p => URL.createObjectURL(p));
+    d.querySelector('#thumbs').innerHTML = pages.map((p, i) => `<div class="thumb">${p.type === 'application/pdf' ? '<span>PDF</span>' : `<img src="${tmp[i]}" alt="${esc(t('Page {n}', { n: i + 1 }))}">`}<button type="button" data-rm="${i}" aria-label="${esc(t('Retirer cette page'))}">×</button></div>`).join('');
+    d.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { pages.splice(+b.dataset.rm, 1); draw(); }); };
+  const add = async e => { const msg = d.querySelector('.err'); msg.textContent = '';
+    try { for (const f of e.target.files) pages.push(await shrink(f)); } catch (x) { msg.textContent = em(x); }
+    e.target.value = ''; draw(); };
+  d.querySelector('#cam').onchange = add; d.querySelector('#pick').onchange = add;
+  d.addEventListener('close', () => tmp.forEach(u => URL.revokeObjectURL(u)));
+  draw();
+}
+function docView(doc) {
+  if (!doc) return;
+  const us = doc.pages.map(p => URL.createObjectURL(p)), d = document.createElement('dialog');
+  d.innerHTML = `<h2>${esc(doc.title)}</h2>${doc.note ? `<p>${esc(doc.note)}</p>` : ''}` +
+    doc.pages.map((p, i) => p.type === 'application/pdf' ? `<p><a href="${us[i]}" target="_blank" rel="noopener">${t('Ouvrir le PDF')}</a></p>` : `<img class="page" src="${us[i]}" alt="${esc(t('Page {n}', { n: i + 1 }))}">`).join('') +
+    `<div class="row"><button class="primary" type="button">${t('Fermer')}</button></div>`;
+  document.body.append(d); d.showModal(); d.querySelector('button').onclick = () => d.close();
+  d.onclose = () => { us.forEach(u => URL.revokeObjectURL(u)); d.remove(); };
 }
 
 // ---------- Vues ----------
@@ -154,6 +202,7 @@ function card(a) {
 }
 const byName = (a, b) => a.name.localeCompare(b.name, 'fr');
 function render() {
+  urls.forEach(u => URL.revokeObjectURL(u)); urls = [];
   document.querySelectorAll('nav button').forEach(b => { b.textContent = t(NAV[b.dataset.v]); b.setAttribute('aria-current', b.dataset.v === view ? 'page' : 'false'); });
   const m = $('#main');
   if (view === 'home') {
@@ -162,11 +211,14 @@ function render() {
     <h2>${t('À racheter')}</h2>${low.length ? low.map(card).join('') : `<p class="small">${t('Aucun article à réapprovisionner.')}</p>`}
     ${ex.length ? `<h2>${t('Péremption')}</h2>${ex.map(card).join('')}` : ''}
     `;
+  } else if (view === 'stock' && stockTab === 'docs') {
+    const list = [...docs].sort((a, b) => (b.date || b.created).localeCompare(a.date || a.created));
+    m.innerHTML = `${segBar()}<button class="primary big" data-a="doc-new">${t('Scanner une ordonnance')}</button>` + (list.length ? list.map(docCard).join('') : `<p class="small">${t('Aucune ordonnance enregistrée. Scannez-en une avec le bouton ci-dessus.')}</p>`);
   } else if (view === 'stock') {
     const k = q.toLowerCase();
     const list = items.filter(a => (!k || [a.name, a.cat, a.barcode].some(x => (x || '').toLowerCase().includes(k))) &&
       (flt === 'all' || (flt === 'low' && status(a) === 'low') || (flt === 'out' && a.qty <= 0) || (flt === 'exp' && expiry(a)))).sort(byName);
-    m.innerHTML = `<label>${t('Rechercher (nom, catégorie, code-barres)')}<input id="q" type="search" value="${esc(q)}"></label>
+    m.innerHTML = `${segBar()}<label>${t('Rechercher (nom, catégorie, code-barres)')}<input id="q" type="search" value="${esc(q)}"></label>
     <div class="chips">${[['all','Tous'],['low','Stock faible'],['out','Épuisés'],['exp','Péremption proche']].map(([v, l]) => `<button data-f="${v}" aria-pressed="${flt === v}">${t(l)}</button>`).join('')}</div>
     ${list.length ? list.map(card).join('') : `<p class="small">${t('Aucun article.')}</p>`}`;
     const qi = $('#q'); qi.oninput = () => { q = qi.value; const p = qi.selectionStart; render(); const n = $('#q'); n.focus(); n.setSelectionRange(p, p); };
@@ -182,7 +234,7 @@ function render() {
     $('#hi').onchange = e => { hItem = e.target.value; render(); }; $('#ht').onchange = e => { hType = e.target.value; render(); };  } else {
     m.innerHTML = `<h2>${t('Langue')}</h2><select id="lang" aria-label="${t('Langue')}">${Object.entries(LANGS).map(([k, v]) => `<option value="${k}" ${k === getLang() ? 'selected' : ''}>${v}</option>`).join('')}</select>
     <h2>${t('Thème')}</h2><select id="theme" aria-label="${t('Thème')}">${[['', 'Automatique (système)'], ['light', 'Clair'], ['dark', 'Sombre']].map(([k, l]) => `<option value="${k}" ${k === getTheme() ? 'selected' : ''}>${t(l)}</option>`).join('')}</select>
-    <h2>${t('Sauvegarde')}</h2><p class="small">${t("Les données sont stockées uniquement sur ce téléphone. Vider les données du navigateur, désinstaller l'application ou perdre le téléphone les efface. Exportez une sauvegarde régulièrement.")}</p>
+    <h2>${t('Sauvegarde')}</h2><p class="small">${t("Les données sont stockées uniquement sur ce téléphone. Vider les données du navigateur, désinstaller l'application ou perdre le téléphone les efface. Exportez une sauvegarde régulièrement.")}</p><p class="small">${t("L'export contient aussi vos ordonnances : conservez le fichier en lieu sûr.")}</p>
     <div class="row"><button class="primary" data-a="export">${t('Exporter (JSON)')}</button><button class="ghost" data-a="import">${t('Restaurer…')}</button></div><button class="ghost danger big" data-a="wipe">${t('Effacer toutes les données')}</button>
     <input type="file" id="file" accept="application/json,.json" hidden>
     <h2>${t('À propos')}</h2><button class="ghost big" data-a="about">${t('À propos')}</button>
@@ -195,6 +247,7 @@ function render() {
 // ---------- Actions ----------
 document.addEventListener('click', async e => {
   const nav = e.target.closest('nav button'); if (nav) { view = nav.dataset.v; return render(); }
+  const sg = e.target.closest('[data-s]'); if (sg) { stockTab = sg.dataset.s; return render(); }
   const f = e.target.closest('[data-f]'); if (f) { flt = f.dataset.f; return render(); }
   const b = e.target.closest('[data-a]'); if (!b || busy) return;
   const a = items.find(x => x.id === b.dataset.id);
@@ -205,24 +258,29 @@ document.addEventListener('click', async e => {
       case 'edit': itemForm(a); break;
       case 'scan': scanner(); break;
       case 'about': about(); break;
+      case 'doc-new': docForm(); break;
+      case 'doc-view': docView(docs.find(x => x.id === b.dataset.id)); break;
+      case 'doc-edit': docForm(docs.find(x => x.id === b.dataset.id)); break;
+      case 'doc-del': { const dd = docs.find(x => x.id === b.dataset.id);
+        if (dd && confirm(t("Supprimer l'ordonnance « {title} » ?", { title: dd.title }))) { await write((i, m, dc) => dc.delete(dd.id)); docs = docs.filter(x => x.id !== dd.id); render(); } break; }
       case 'new': itemForm(); break;
-      case 'export': { const blob = new Blob([JSON.stringify({ app: 'stockdiab', version: 1, exported: new Date().toISOString(), items, moves }, null, 1)], { type: 'application/json' });
+      case 'export': { const blob = new Blob([JSON.stringify({ app: 'stockdiab', version: 2, exported: new Date().toISOString(), items, moves, docs: await Promise.all(docs.map(async d => ({ ...d, pages: await Promise.all(d.pages.map(toDataURL)) }))) }, null, 1)], { type: 'application/json' });
         const l = document.createElement('a'); l.href = URL.createObjectURL(blob); l.download = `stockdiab-${new Date().toISOString().slice(0, 10)}.json`; l.click(); setTimeout(() => URL.revokeObjectURL(l.href), 5000); break; }
       case 'import': { const fi = $('#file'); fi.onchange = async () => { try { const o = validateBackup(JSON.parse(await fi.files[0].text()));
-          if (!confirm(t('Remplacer toutes les données actuelles par cette sauvegarde ({a} articles, {m} mouvements) ?', { a: o.items.length, m: o.moves.length }))) return;
-          await replaceAll(o.items, o.moves); } catch (x) { alert(x instanceof SyntaxError ? t('Sauvegarde invalide : fichier illisible.') : em(x)); } }; fi.click(); break; }
-      case 'wipe': if (confirm(t('Effacer TOUTES les données (articles et historique) ? Action irréversible.'))) await replaceAll([], []); break;
+          if (!confirm(t('Remplacer toutes les données actuelles par cette sauvegarde ({a} articles, {m} mouvements, {d} ordonnances) ?', { a: o.items.length, m: o.moves.length, d: (o.docs || []).length }))) return;
+          await replaceAll(o.items, o.moves, await Promise.all((o.docs || []).map(async d => ({ ...d, pages: await Promise.all(d.pages.map(fromDataURL)) })))); } catch (x) { alert(x instanceof SyntaxError ? t('Sauvegarde invalide : fichier illisible.') : em(x)); } }; fi.click(); break; }
+      case 'wipe': if (confirm(t('Effacer TOUTES les données (articles, historique et ordonnances) ? Action irréversible.'))) await replaceAll([], []); break;
     }
   } catch (x) { alert(em(x)); }
 });
-async function replaceAll(its, mvs) {
-  await write((i, m) => { i.clear(); m.clear(); its.forEach(x => i.put(x)); mvs.forEach(x => m.put(x)); }); items = its; moves = mvs; render();
+async function replaceAll(its, mvs, dcs = []) {
+  await write((i, m, dc) => { i.clear(); m.clear(); dc.clear(); its.forEach(x => i.put(x)); mvs.forEach(x => m.put(x)); dcs.forEach(x => dc.put(x)); }); items = its; moves = mvs; docs = dcs; render();
 }
 
 // ---------- Démarrage ----------
 (async () => {
   $('nav').innerHTML = Object.keys(NAV).map(k => `<button data-v="${k}"></button>`).join('');
-  try { db = await open(); items = await getAll('items'); moves = await getAll('moves'); }
+  try { db = await open(); items = await getAll('items'); moves = await getAll('moves'); docs = await getAll('docs'); }
   catch { $('#main').innerHTML = `<p class="err">${t("Stockage local indisponible (navigation privée ?). L'application ne peut pas enregistrer de données.")}</p>`; return; }
   render();
   if ('serviceWorker' in navigator) { const had = !!navigator.serviceWorker.controller; let reloaded = false;
