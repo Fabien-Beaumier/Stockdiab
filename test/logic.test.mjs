@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { applyMove, status, expiry, daysLeft, validateBackup, esc, parseGS1, norm, pct, refQty } from '../logic.js';
+import { applyMove, status, expiry, daysLeft, validateBackup, lastOcc, nextOcc, toICS, esc, parseGS1, norm, pct, refQty } from '../logic.js';
 const mk = (q, min = 2, extra = {}) => ({ id: 'a', name: 'Cathéter', qty: q, min, unit: 'cathéter', ...extra });
 let n = 0; const t = (name, fn) => { fn(); console.log('OK  ', name); n++; };
 t('ajout 5 à 3 = 8', () => assert.equal(applyMove(mk(3), 'in', 5).item.qty, 8));
@@ -33,4 +33,18 @@ t('code produit imprimé (CIP13) = GTIN', () => assert.equal(norm('3400935259097
 t('sauvegarde avec ordonnances', () => { const base = { app: 'stockdiab', items: [], moves: [] }, p = 'data:image/jpeg;base64,/9j/AAAA';
   assert.equal(validateBackup({ ...base, docs: [{ id: 'd', pages: [p] }] }).docs.length, 1); validateBackup({ ...base });
   for (const docs of [[{ id: 'd', pages: [] }], [{ id: 'd', pages: ['javascript:alert(1)'] }], [{ id: 'd', pages: ['data:text/html;base64,AAAA'] }], 'x']) assert.throws(() => validateBackup({ ...base, docs })); });
+const AL = { id: 'x1', label: 'Changement de cathéter, set A', time: '08:00', every: 3, start: '2026-11-01', on: true };
+t('alarme : dernière et prochaine occurrence', () => {
+  assert.equal(lastOcc(AL, new Date(2026, 10, 1, 7, 0)), null);
+  assert.deepEqual(lastOcc(AL, new Date(2026, 10, 5, 10, 0)), new Date(2026, 10, 4, 8, 0));
+  assert.deepEqual(lastOcc(AL, new Date(2026, 10, 4, 8, 0)), new Date(2026, 10, 4, 8, 0));
+  assert.deepEqual(nextOcc(AL, new Date(2026, 10, 4, 8, 0)), new Date(2026, 10, 7, 8, 0));
+  assert.deepEqual(nextOcc(AL, new Date(2026, 9, 20)), new Date(2026, 10, 1, 8, 0)); });
+t('alarme : l\'heure locale reste stable (changement d\'heure)', () => { const a = { ...AL, every: 1, start: '2026-10-20' }; for (const d of [24, 25, 26, 27]) assert.equal(lastOcc(a, new Date(2026, 9, d, 12)).getHours(), 8); });
+t('export calendrier (.ics)', () => { const s = toICS([AL], new Date('2026-10-30T10:00:00Z'));
+  for (const m of ['BEGIN:VCALENDAR', 'DTSTART:20261101T080000', 'RRULE:FREQ=DAILY;INTERVAL=3', 'BEGIN:VALARM', 'TRIGGER:PT0M', 'SUMMARY:Changement de cathéter\\, set A', 'END:VCALENDAR']) assert.ok(s.includes(m), m);
+  assert.ok(s.includes('\r\n')); });
+t('sauvegarde avec alarmes', () => { const base = { app: 'stockdiab', items: [], moves: [] };
+  assert.equal(validateBackup({ ...base, alarms: [AL] }).alarms.length, 1);
+  for (const alarms of [[{ ...AL, every: 0 }], [{ ...AL, time: '8h' }], [{ ...AL, start: 'demain' }], 'x']) assert.throws(() => validateBackup({ ...base, alarms })); });
 console.log(`\n${n} tests réussis`);
