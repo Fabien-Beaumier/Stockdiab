@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { applyMove, status, expiry, daysLeft, validateBackup, lastOcc, nextOcc, toICS, esc, parseGS1, norm, pct, refQty } from '../logic.js';
+import { applyMove, status, expiry, daysLeft, validateBackup, lastOcc, nextOcc, toICS, esc, parseGS1, norm, pct, refQty, ratePerDay } from '../logic.js';
 const mk = (q, min = 2, extra = {}) => ({ id: 'a', name: 'Cathéter', qty: q, min, unit: 'cathéter', ...extra });
 let n = 0; const t = (name, fn) => { fn(); console.log('OK  ', name); n++; };
 t('ajout 5 à 3 = 8', () => assert.equal(applyMove(mk(3), 'in', 5).item.qty, 8));
@@ -28,6 +28,7 @@ t('barre de pourcentage', () => { assert.equal(pct(mk(3, 2, { full: 12 })), 25);
 t('GS1 réel (boîte de stylos) : GTIN, lot, péremption', () => { const g = parseGS1('(01)03400935259097(21)7C15805N(17)280331(10)VZF06N9');
   assert.deepEqual(g, { gtin: '03400935259097', lot: 'VZF06N9', exp: '2028-03-31' });
   assert.equal(parseGS1('01034009352590972170C15805N\x1d17280331\x1d10VZF06N9').gtin, '03400935259097'); });
+t('consommation « N par période »', () => { assert.equal(ratePerDay(2, 'day'), 2); assert.ok(Math.abs(ratePerDay(30.4375, 'month') - 1) < 1e-9); assert.ok(Math.abs(ratePerDay(365.25, 'year') - 1) < 1e-9); assert.equal(ratePerDay('', 'day'), 0); assert.equal(ratePerDay(3, 'x'), 0); assert.equal(daysLeft(mk(10, 2, { rate: ratePerDay(1, 'month') })), 304); });
 t('GS1 sans séparateurs : le GTIN reste lu', () => assert.equal(parseGS1('01034009352590972 17C15805N1728033110VZF06N9'.replace(' ', '')).gtin, '03400935259097'));
 t('code produit imprimé (CIP13) = GTIN', () => assert.equal(norm('3400935259097'), norm('03400935259097')));
 t('sauvegarde avec ordonnances', () => { const base = { app: 'stockdiab', items: [], moves: [] }, p = 'data:image/jpeg;base64,/9j/AAAA';
