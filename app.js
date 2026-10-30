@@ -1,4 +1,4 @@
-import { esc, status, expiry, daysLeft, applyMove, validateBackup, uid, err, norm, parseGS1, refQty, pct } from './logic.js';
+import { esc, status, expiry, daysLeft, applyMove, validateBackup, uid, err, norm, parseGS1, refQty, pct, lastOcc, nextOcc, toICS } from './logic.js';
 import './install.js';
 import { scanImage } from './decode.js';
 import { t, LANGS, getLang, setLang, locale } from './i18n.js';
@@ -13,11 +13,11 @@ const UNITS = ['pièce','boîte','stylo','fiole','cartouche','cathéter','réser
 let db, items = [], moves = [], view = 'home', flt = 'all', q = '', hItem = '', hType = '', busy = false;
 
 // ---------- Stockage IndexedDB ----------
-const open = () => new Promise((ok, ko) => { const r = indexedDB.open('stockdiab', 2);
-  r.onupgradeneeded = () => { for (const n of ['items', 'moves', 'docs']) if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, { keyPath: 'id' }); }; // les données existantes sont conservées
+const open = () => new Promise((ok, ko) => { const r = indexedDB.open('stockdiab', 3);
+  r.onupgradeneeded = () => { for (const n of ['items', 'moves', 'docs', 'alarms']) if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, { keyPath: 'id' }); }; // les données existantes sont conservées
   r.onsuccess = () => ok(r.result); r.onerror = () => ko(r.error); });
 const getAll = s => new Promise((ok, ko) => { const r = db.transaction(s).objectStore(s).getAll(); r.onsuccess = () => ok(r.result); r.onerror = () => ko(r.error); });
-const write = fn => new Promise((ok, ko) => { const t = db.transaction(['items', 'moves', 'docs'], 'readwrite'); fn(t.objectStore('items'), t.objectStore('moves'), t.objectStore('docs')); t.oncomplete = ok; t.onerror = t.onabort = () => ko(err('Erreur de stockage local.')); });
+const write = fn => new Promise((ok, ko) => { const t = db.transaction(['items', 'moves', 'docs', 'alarms'], 'readwrite'); fn(t.objectStore('items'), t.objectStore('moves'), t.objectStore('docs'), t.objectStore('alarms')); t.oncomplete = ok; t.onerror = t.onabort = () => ko(err('Erreur de stockage local.')); });
 async function commit(item, mv) { // écriture atomique article + mouvement
   await write((i, m) => { i.put(item); if (mv) m.put(mv); });
   items = [...items.filter(x => x.id !== item.id), item]; if (mv) moves.push(mv); render();
@@ -187,6 +187,58 @@ function docView(doc) {
   d.onclose = () => { us.forEach(u => URL.revokeObjectURL(u)); d.remove(); };
 }
 
+// ---------- Alarmes récurrentes : rappels dans l'appli + export calendrier (.ics) pour sonner appli fermée ----------
+let alarms = [];
+const SUGG = ['Changement de cathéter', "Changement de stylo d'insuline", "Changement de fiole d'insuline", 'Changement de capteur', 'Changement de réservoir'];
+const p2 = n => String(n).padStart(2, '0');
+const fmtNext = d => d.toLocaleString(locale(), { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const saveAlarm = async a => { await write((i, m, dc, al) => al.put(a)); alarms = [...alarms.filter(x => x.id !== a.id), a]; };
+function download(text, name, type) { const l = document.createElement('a'); l.href = URL.createObjectURL(new Blob([text], { type })); l.download = name; l.click(); setTimeout(() => URL.revokeObjectURL(l.href), 5000); }
+async function checkAlarms() { // appelée toutes les 30 s et au retour dans l'appli : n'affiche que la dernière occurrence manquée de chaque alarme
+  const now = new Date(), due = [];
+  for (const a of alarms) { if (!a.on) continue; const o = lastOcc(a, now); if (!o || a.fired === o.toISOString()) continue;
+    due.push(`${a.label} (${p2(o.getHours())}:${p2(o.getMinutes())})`); await saveAlarm({ ...a, fired: o.toISOString() }); }
+  if (!due.length) return;
+  if ('Notification' in window && Notification.permission === 'granted') navigator.serviceWorker?.ready.then(r => r.showNotification('StockDiab', { body: due.join('\n'), icon: 'icons/icon-192.png', tag: 'stockdiab-alarm', vibrate: [200, 100, 200] })).catch(() => {});
+  navigator.vibrate?.([200, 100, 200]);
+  const d = document.createElement('dialog'); d.innerHTML = `<h2>${t('Rappel')}</h2>${due.map(x => `<p><b>${esc(x)}</b></p>`).join('')}<div class="row"><button class="primary" type="button">${t('Fermer')}</button></div>`;
+  document.body.append(d); d.showModal(); d.querySelector('button').onclick = () => d.close(); d.onclose = () => d.remove();
+}
+function alarmForm(a, done) {
+  const isNew = !a, n = new Date(), today = `${n.getFullYear()}-${p2(n.getMonth() + 1)}-${p2(n.getDate())}`;
+  modal(t(isNew ? 'Nouvelle alarme' : "Modifier l'alarme"),
+    `<label>${t('Nom du rappel')}<input name="label" list="sugg" value="${esc(a?.label)}" required maxlength="60"></label><datalist id="sugg">${SUGG.map(x => `<option value="${esc(t(x))}">`).join('')}</datalist>` +
+    F(t('Heure'), 'time', a?.time || '08:00', 'time', 'required') + F(t('Répéter tous les (jours)'), 'every', a?.every || 1, 'number', 'min="1" max="365" step="1" inputmode="numeric" required') + F(t('Date de la première alarme'), 'start', a?.start || today, 'date', 'required'),
+    async v => { const label = v.label.trim(), every = Number(v.every);
+      if (!label) throw err('Le nom est obligatoire.');
+      if (!Number.isInteger(every) || every < 1 || every > 365) throw err('La fréquence doit être un nombre entier de jours (1 à 365).');
+      if (!/^\d\d:\d\d$/.test(v.time) || !v.start) throw err('Choisissez une date et une heure.');
+      const rec = { id: a?.id || uid(), label, time: v.time, every, start: v.start, on: a ? a.on : true };
+      rec.fired = lastOcc(rec)?.toISOString() || ''; // seules les prochaines occurrences sonnent
+      await saveAlarm(rec);
+      if (isNew && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
+      done(); });
+}
+function alarmsDialog() {
+  const d = document.createElement('dialog');
+  const draw = () => { const list = [...alarms].sort((a, b) => nextOcc(a) - nextOcc(b));
+    d.innerHTML = `<h2>${t('Mes alarmes')}</h2><p class="small">${t("Les rappels s'affichent quand StockDiab est ouvert. Pour être prévenu application fermée, ajoutez l'alarme au calendrier du téléphone.")}</p>` +
+      (list.length ? list.map(a => `<article class="card"><h3>${esc(a.label)}</h3><p class="small">${t('Tous les {n} jour(s) à {h}', { n: a.every, h: a.time })}</p><p class="small">${t('Prochaine : {d}', { d: fmtNext(nextOcc(a)) })}</p>
+        <label><input type="checkbox" style="width:auto;min-height:0" data-al="on" data-id="${a.id}" ${a.on ? 'checked' : ''}> ${t('Active')}</label>
+        <div class="row"><button type="button" data-al="ics" data-id="${a.id}">${t('Ajouter au calendrier')}</button><button type="button" data-al="edit" data-id="${a.id}">${t('Modifier')}</button><button type="button" class="danger" data-al="del" data-id="${a.id}">${t('Supprimer')}</button></div></article>`).join('')
+        : `<p class="small">${t('Aucune alarme. Créez-en une avec le bouton ci-dessous.')}</p>`) +
+      `<button type="button" class="primary big" data-al="new">${t('Nouvelle alarme')}</button><div class="row"><button type="button" class="ghost" data-al="close">${t('Fermer')}</button></div>`; };
+  d.onclick = async e => { const b = e.target.closest('[data-al]'); if (!b) return; const a = alarms.find(x => x.id === b.dataset.id);
+    try { switch (b.dataset.al) {
+      case 'close': d.close(); break; case 'new': alarmForm(null, draw); break; case 'edit': alarmForm(a, draw); break;
+      case 'ics': download(toICS([a]), 'stockdiab-alarme.ics', 'text/calendar'); break;
+      case 'del': if (confirm(t("Supprimer l'alarme « {name} » ?", { name: a.label }))) { await write((i, m, dc, al) => al.delete(a.id)); alarms = alarms.filter(x => x.id !== a.id); draw(); } break; } }
+    catch (x) { alert(em(x)); } };
+  d.onchange = async e => { const b = e.target.closest('[data-al=on]'); if (!b) return; const a = alarms.find(x => x.id === b.dataset.id);
+    await saveAlarm({ ...a, on: b.checked, fired: lastOcc(a)?.toISOString() || '' }); draw(); };
+  draw(); document.body.append(d); d.showModal(); d.onclose = () => d.remove();
+}
+
 // ---------- Vues ----------
 function bar(a) { // barre : quantité restante / stock de référence
   const p = pct(a, moves), r = refQty(a, moves);
@@ -207,7 +259,7 @@ function render() {
   const m = $('#main');
   if (view === 'home') {
     const low = items.filter(a => status(a) !== 'ok').sort(byName), ex = items.filter(a => expiry(a));
-    m.innerHTML = `<div class="stats"><div><b>${items.length}</b>${t('références')}</div><div><b>${items.filter(a => status(a) === 'low').length}</b>${t('sous le seuil')}</div><div><b>${items.filter(a => a.qty <= 0).length}</b>${t('épuisés')}</div></div>
+    m.innerHTML = `<div><button class="ghost" data-a="alarms">${t('Mes alarmes')}</button></div><div class="stats"><div><b>${items.length}</b>${t('références')}</div><div><b>${items.filter(a => status(a) === 'low').length}</b>${t('sous le seuil')}</div><div><b>${items.filter(a => a.qty <= 0).length}</b>${t('épuisés')}</div></div>
     <h2>${t('À racheter')}</h2>${low.length ? low.map(card).join('') : `<p class="small">${t('Aucun article à réapprovisionner.')}</p>`}
     ${ex.length ? `<h2>${t('Péremption')}</h2>${ex.map(card).join('')}` : ''}
     `;
@@ -237,7 +289,7 @@ function render() {
     <h2>${t('Sauvegarde')}</h2><p class="small">${t("Les données sont stockées uniquement sur ce téléphone. Vider les données du navigateur, désinstaller l'application ou perdre le téléphone les efface. Exportez une sauvegarde régulièrement.")}</p><p class="small">${t("L'export contient aussi vos ordonnances : conservez le fichier en lieu sûr.")}</p>
     <div class="row"><button class="primary" data-a="export">${t('Exporter (JSON)')}</button><button class="ghost" data-a="import">${t('Restaurer…')}</button></div><button class="ghost danger big" data-a="wipe">${t('Effacer toutes les données')}</button>
     <input type="file" id="file" accept="application/json,.json" hidden>
-    <h2>${t('À propos')}</h2><button class="ghost big" data-a="about">${t('À propos')}</button>
+    <button class="ghost big" data-a="about">${t('À propos')}</button>
     <h2>${t('Soutenir le projet')}</h2><a class="primary big" href="https://paypal.me/FabienBeaumier" target="_blank" rel="noopener noreferrer">Buy me a coffee</a>`;
     $('#lang').onchange = e => { setLang(e.target.value); render(); };
     $('#theme').onchange = e => setTheme(e.target.value);
@@ -258,31 +310,33 @@ document.addEventListener('click', async e => {
       case 'edit': itemForm(a); break;
       case 'scan': scanner(); break;
       case 'about': about(); break;
+      case 'alarms': alarmsDialog(); break;
       case 'doc-new': docForm(); break;
       case 'doc-view': docView(docs.find(x => x.id === b.dataset.id)); break;
       case 'doc-edit': docForm(docs.find(x => x.id === b.dataset.id)); break;
       case 'doc-del': { const dd = docs.find(x => x.id === b.dataset.id);
         if (dd && confirm(t("Supprimer l'ordonnance « {title} » ?", { title: dd.title }))) { await write((i, m, dc) => dc.delete(dd.id)); docs = docs.filter(x => x.id !== dd.id); render(); } break; }
       case 'new': itemForm(); break;
-      case 'export': { const blob = new Blob([JSON.stringify({ app: 'stockdiab', version: 2, exported: new Date().toISOString(), items, moves, docs: await Promise.all(docs.map(async d => ({ ...d, pages: await Promise.all(d.pages.map(toDataURL)) }))) }, null, 1)], { type: 'application/json' });
+      case 'export': { const blob = new Blob([JSON.stringify({ app: 'stockdiab', version: 3, exported: new Date().toISOString(), items, moves, alarms, docs: await Promise.all(docs.map(async d => ({ ...d, pages: await Promise.all(d.pages.map(toDataURL)) }))) }, null, 1)], { type: 'application/json' });
         const l = document.createElement('a'); l.href = URL.createObjectURL(blob); l.download = `stockdiab-${new Date().toISOString().slice(0, 10)}.json`; l.click(); setTimeout(() => URL.revokeObjectURL(l.href), 5000); break; }
       case 'import': { const fi = $('#file'); fi.onchange = async () => { try { const o = validateBackup(JSON.parse(await fi.files[0].text()));
           if (!confirm(t('Remplacer toutes les données actuelles par cette sauvegarde ({a} articles, {m} mouvements, {d} ordonnances) ?', { a: o.items.length, m: o.moves.length, d: (o.docs || []).length }))) return;
-          await replaceAll(o.items, o.moves, await Promise.all((o.docs || []).map(async d => ({ ...d, pages: await Promise.all(d.pages.map(fromDataURL)) })))); } catch (x) { alert(x instanceof SyntaxError ? t('Sauvegarde invalide : fichier illisible.') : em(x)); } }; fi.click(); break; }
+          await replaceAll(o.items, o.moves, await Promise.all((o.docs || []).map(async d => ({ ...d, pages: await Promise.all(d.pages.map(fromDataURL)) }))), o.alarms || []); } catch (x) { alert(x instanceof SyntaxError ? t('Sauvegarde invalide : fichier illisible.') : em(x)); } }; fi.click(); break; }
       case 'wipe': if (confirm(t('Effacer TOUTES les données (articles, historique et ordonnances) ? Action irréversible.'))) await replaceAll([], []); break;
     }
   } catch (x) { alert(em(x)); }
 });
-async function replaceAll(its, mvs, dcs = []) {
-  await write((i, m, dc) => { i.clear(); m.clear(); dc.clear(); its.forEach(x => i.put(x)); mvs.forEach(x => m.put(x)); dcs.forEach(x => dc.put(x)); }); items = its; moves = mvs; docs = dcs; render();
+async function replaceAll(its, mvs, dcs = [], als = []) {
+  await write((i, m, dc, al) => { i.clear(); m.clear(); dc.clear(); al.clear(); its.forEach(x => i.put(x)); mvs.forEach(x => m.put(x)); dcs.forEach(x => dc.put(x)); als.forEach(x => al.put(x)); }); items = its; moves = mvs; docs = dcs; alarms = als; render();
 }
 
 // ---------- Démarrage ----------
 (async () => {
   $('nav').innerHTML = Object.keys(NAV).map(k => `<button data-v="${k}"></button>`).join('');
-  try { db = await open(); items = await getAll('items'); moves = await getAll('moves'); docs = await getAll('docs'); }
+  try { db = await open(); items = await getAll('items'); moves = await getAll('moves'); docs = await getAll('docs'); alarms = await getAll('alarms'); }
   catch { $('#main').innerHTML = `<p class="err">${t("Stockage local indisponible (navigation privée ?). L'application ne peut pas enregistrer de données.")}</p>`; return; }
   render();
+  checkAlarms(); setInterval(checkAlarms, 30000); document.addEventListener('visibilitychange', () => { if (!document.hidden) checkAlarms(); });
   if ('serviceWorker' in navigator) { const had = !!navigator.serviceWorker.controller; let reloaded = false;
     navigator.serviceWorker.register('sw.js').catch(() => {});
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !reloaded) { reloaded = true; location.reload(); } }); } // nouvelle version : rechargement unique

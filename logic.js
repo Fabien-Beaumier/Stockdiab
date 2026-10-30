@@ -49,6 +49,10 @@ export function validateBackup(o) {
     for (const d of o.docs) if (typeof d.id !== 'string' || !Array.isArray(d.pages) || !d.pages.length ||
       d.pages.some(p => typeof p !== 'string' || !/^data:(image\/(jpeg|png|webp|gif)|application\/pdf);base64,/.test(p))) bad('ordonnance mal formée.');
   }
+  if (o.alarms !== undefined) {
+    if (!Array.isArray(o.alarms)) bad('données manquantes.');
+    for (const a of o.alarms) if (typeof a.id !== 'string' || typeof a.label !== 'string' || !/^\d\d:\d\d$/.test(a.time) || !Number.isInteger(a.every) || a.every < 1 || a.every > 365 || !/^\d{4}-\d\d-\d\d$/.test(a.start)) bad('alarme mal formée.');
+  }
   return o;
 }
 
@@ -76,4 +80,26 @@ export function parseGS1(raw) {
     if (m >= 1 && m <= 12) exp = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   }
   return { gtin: o['01'], lot: o['10'] || '', exp };
+}
+
+// ---- Alarmes récurrentes : une occurrence tous les `every` jours, à l'heure `time`, à partir de `start` (heure locale).
+export const occAt = (a, k) => { const [y, m, d] = a.start.split('-').map(Number), [h, mi] = a.time.split(':').map(Number); return new Date(y, m - 1, d + k * a.every, h, mi); };
+export function lastOcc(a, now = new Date()) { // dernière occurrence passée (null si pas encore commencée)
+  let k = Math.floor((now - occAt(a, 0)) / (a.every * 864e5)); if (k < 0) return null;
+  while (occAt(a, k + 1) <= now) k++; while (k >= 0 && occAt(a, k) > now) k--;
+  return k < 0 ? null : occAt(a, k);
+}
+export function nextOcc(a, now = new Date()) { // prochaine occurrence strictement future
+  let k = Math.max(0, Math.floor((now - occAt(a, 0)) / (a.every * 864e5)) - 1); while (occAt(a, k) <= now) k++; return occAt(a, k);
+}
+// Fichier .ics (calendrier du téléphone) : événement récurrent avec rappel à l'heure exacte, qui sonne même appli fermée.
+export function toICS(list, now = new Date()) {
+  const p = n => String(n).padStart(2, '0'), loc = d => `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}T${p(d.getHours())}${p(d.getMinutes())}00`;
+  const x = s => String(s).replace(/[\\;,]/g, c => '\\' + c).replace(/\r?\n/g, '\\n');
+  const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+  const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//StockDiab//FR', 'CALSCALE:GREGORIAN'];
+  for (const a of list) { const s = occAt(a, 0);
+    L.push('BEGIN:VEVENT', `UID:${a.id}@stockdiab`, `DTSTAMP:${stamp}`, `DTSTART:${loc(s)}`, `DTEND:${loc(new Date(+s + 15 * 6e4))}`, `RRULE:FREQ=DAILY;INTERVAL=${a.every}`, `SUMMARY:${x(a.label)}`,
+      'BEGIN:VALARM', 'TRIGGER:PT0M', 'ACTION:DISPLAY', `DESCRIPTION:${x(a.label)}`, 'END:VALARM', 'END:VEVENT'); }
+  L.push('END:VCALENDAR'); return L.join('\r\n') + '\r\n';
 }

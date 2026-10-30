@@ -53,6 +53,12 @@ Paramètres > Buy me a coffee ouvre paypal.me/FabienBeaumier (seul lien externe 
 ## Ordonnances
 Mon stock > Mes ordonnances > Scanner une ordonnance : photo (appareil photo) ou image/PDF existant, plusieurs pages possibles, titre, date et notes. Tout reste dans IndexedDB sur l'appareil (images réduites à 1800 px, JPEG). L'export JSON de sauvegarde contient aussi les ordonnances (en base64), donc il grossit. Pas de recadrage automatique ni de reconnaissance de texte. Les ordonnances ne sont pas chiffrées : verrouillage d'écran recommandé.
 
+## Alarmes
+Accueil > Mes alarmes : rappels récurrents (nom libre, heure, tous les N jours, date de départ), par exemple pour un changement de cathéter ou de capteur. Aucune fréquence n'est suggérée : à vous de la choisir.
+- Rappel dans l'appli : fenêtre + notification (si autorisée) quand StockDiab est ouvert ou revient au premier plan. Une PWA sans serveur ne peut pas réveiller le téléphone application fermée.
+- Pour être prévenu application fermée : « Ajouter au calendrier » télécharge un fichier .ics (événement récurrent avec rappel) à ouvrir avec l'application Calendrier du téléphone.
+- Les alarmes sont incluses dans la sauvegarde JSON.
+
 ## À propos et mentions légales
 Paramètres > À propos : présentation, contact, mentions légales, données personnelles, responsabilité. L'année du copyright se met à jour automatiquement. Si vous changez d'hébergeur, modifiez la ligne « Hébergement » dans app.js (fonction about) et ses traductions dans i18n.js.
 
