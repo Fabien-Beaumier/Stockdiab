@@ -17,7 +17,7 @@ PWA de gestion de stock de matériel personnel. Interface en français, données
 localhost est considéré comme sécurisé : caméra et service worker y fonctionnent.
 
 ## Déploiement HTTPS
-La caméra et le service worker exigent HTTPS (hors localhost). Déposez le dossier tel quel sur un hébergement statique HTTPS : GitHub Pages, Netlify, Cloudflare Pages. Aucune étape de build.
+La caméra et le service worker exigent HTTPS (hors localhost). Déposez le dossier tel quel sur un hébergement statique HTTPS : GitHub Pages (hébergement actuel), Netlify, Cloudflare Pages. Aucune étape de build.
 
 ## Installer sur Android (Chrome)
 1. Ouvrez l'adresse HTTPS dans Chrome.

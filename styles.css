@@ -16,7 +16,7 @@ button,input,select,textarea{font:inherit}
 .qty{font-size:1.4rem;font-weight:700;margin:4px 0}.small{color:var(--m);font-size:.85rem;margin:2px 0}
 .tag{font-size:.8rem;padding:2px 8px;border:1px solid currentColor;border-radius:99px;white-space:nowrap}.tag.ok{color:var(--g)}.tag.low{color:var(--w)}.tag.out{color:var(--r)}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.row>*{flex:1}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stats div{background:var(--c);border:1px solid var(--b);border-radius:12px;padding:10px;text-align:center}.stats b{display:block;font-size:1.5rem}
+.stats{margin-top:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stats div{background:var(--c);border:1px solid var(--b);border-radius:12px;padding:10px;text-align:center}.stats b{display:block;font-size:1.5rem}
 input,select,textarea{width:100%;min-height:44px;padding:8px;border:1px solid var(--b);border-radius:8px;background:var(--c);color:var(--t)}
 label{display:block;margin:8px 0;font-size:.9rem;color:var(--m)}
 dialog{background:var(--c);color:var(--t);border:0;border-radius:14px;width:min(92vw,480px);padding:16px}dialog::backdrop{background:#0006}
@@ -26,3 +26,4 @@ dialog{background:var(--c);color:var(--t);border:0;border-radius:14px;width:min(
 #cam{width:100%;max-height:50vh;object-fit:cover;border-radius:8px;background:#000}a.primary{display:flex;align-items:center;justify-content:center;text-decoration:none}
 .chips{padding-bottom:14px;scrollbar-width:thin}dialog{max-height:88vh;overflow:auto}dialog h3{margin:14px 0 2px;font-size:1rem}dialog a{color:var(--g)}
 .thumbs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.thumb{position:relative;width:72px;height:96px;border:1px solid var(--b);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center}.thumb img{width:100%;height:100%;object-fit:cover}.thumb button{position:absolute;top:2px;right:2px;width:30px;height:30px;min-height:0;padding:0;border-radius:50%;border:0;background:#000a;color:#fff}.thumbimg{width:100%;max-height:160px;object-fit:cover;border-radius:8px;margin:6px 0}img.page{width:100%;border-radius:8px;margin:8px 0}
+.rate{flex-wrap:nowrap;align-items:center;margin-top:0}.rate input{flex:2}.rate select{flex:3}.rate .per{flex:0 0 auto;color:var(--m)}

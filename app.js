@@ -1,4 +1,4 @@
-import { esc, status, expiry, daysLeft, applyMove, validateBackup, uid, err, norm, parseGS1, refQty, pct, lastOcc, nextOcc, toICS } from './logic.js';
+import { esc, status, expiry, daysLeft, applyMove, validateBackup, uid, err, norm, parseGS1, refQty, pct, lastOcc, nextOcc, toICS, ratePerDay } from './logic.js';
 import './install.js';
 import { scanImage } from './decode.js';
 import { t, LANGS, getLang, setLang, locale } from './i18n.js';
@@ -44,6 +44,11 @@ function qtyDialog(a, type) {
     F(t(out ? 'Quantité à retirer' : 'Quantité reçue'), 'n', 1, 'number', 'min="1" step="1" inputmode="numeric" required') + F(t('Note (facultatif)'), 'note'),
     v => move(a, type, v.n, v.note), out ? 'Retirer' : 'Ajouter');
 }
+const RATE_LBL = { day: 'jour', month: 'mois', year: 'année' };
+function rateField(it) { // « [nombre] par [jour | mois | année] » : le nombre est libre, la période se choisit dans la liste
+  const n = it.rateN ?? (it.rate || ''), u = it.rateU || 'day';
+  return `<label>${t('Consommation moyenne (facultatif, estimation)')}</label><div class="row rate"><input name="rateN" type="number" min="0" step="any" inputmode="decimal" value="${esc(n)}" aria-label="${esc(t('Quantité consommée'))}"><span class="per">${t('par')}</span><select name="rateU" aria-label="${esc(t('Fréquence'))}">${Object.entries(RATE_LBL).map(([k, l]) => `<option value="${k}" ${k === u ? 'selected' : ''}>${t(l)}</option>`).join('')}</select></div>`;
+}
 function itemForm(it = {}) {
   const isNew = !it.id;
   const d = modal(t(isNew ? 'Nouvel article' : "Modifier l'article"),
@@ -52,19 +57,19 @@ function itemForm(it = {}) {
     F(t(isNew ? 'Quantité initiale' : 'Quantité (toute modification est enregistrée comme correction)'), 'qty', it.qty ?? 0, 'number', 'min="0" step="1" required') +
     F(t("Seuil d'alerte (alerte si stock ≤ seuil)"), 'min', it.min ?? 1, 'number', 'min="0" step="1" required') +
     F(t('Code-barres (facultatif)'), 'barcode', it.barcode, 'text', 'inputmode="numeric" maxlength="40"') + F(t('Date de péremption (facultatif)'), 'exp', it.exp, 'date') +
-    F(t('Numéro de lot (facultatif)'), 'lot', it.lot) + F(t('Stock de référence = 100 % de la barre (facultatif)'), 'full', it.full || '', 'number', 'min="1" step="1"') + F(t('Consommation moyenne par jour (facultatif, estimation)'), 'rate', it.rate || '', 'number', 'min="0" step="any"') +
+    F(t('Numéro de lot (facultatif)'), 'lot', it.lot) + F(t('Stock de référence = 100 % de la barre (facultatif)'), 'full', it.full || '', 'number', 'min="1" step="1"') + rateField(it) +
     `<label>${t('Notes')}<textarea name="notes" maxlength="500">${esc(it.notes)}</textarea></label>`,
     async v => {
-      const name = v.name.trim(), bc = v.barcode.trim(), qty = Number(v.qty), min = Number(v.min), rate = v.rate ? Number(v.rate) : 0;
+      const name = v.name.trim(), bc = v.barcode.trim(), qty = Number(v.qty), min = Number(v.min), rateN = v.rateN ? Number(v.rateN) : 0, rateU = v.rateU in RATE_LBL ? v.rateU : 'day', rate = ratePerDay(rateN, rateU);
       if (!name) throw err('Le nom est obligatoire.');
       if (!Number.isInteger(qty) || qty < 0 || !Number.isInteger(min) || min < 0) throw err('Quantité et seuil : nombres entiers positifs ou nuls.');
       const full = v.full ? Number(v.full) : 0;
       if (!Number.isInteger(full) || full < 0) throw err('Stock de référence invalide.');
-      if (!(rate >= 0)) throw err('Consommation moyenne invalide.');
+      if (!(rateN >= 0)) throw err('Consommation moyenne invalide.');
       const dup = bc && items.find(x => x.barcode && norm(x.barcode) === norm(bc) && x.id !== it.id);
       if (dup) throw err('Ce code-barres existe déjà : « {name} ».', { name: dup.name });
       const now = new Date().toISOString();
-      const base = { ...it, id: it.id || uid(), name, cat: v.cat.trim(), unit: v.unit.trim(), min, barcode: bc, exp: v.exp, lot: v.lot.trim(), rate, full, notes: v.notes.trim(), created: it.created || now, updated: now };
+      const base = { ...it, id: it.id || uid(), name, cat: v.cat.trim(), unit: v.unit.trim(), min, barcode: bc, exp: v.exp, lot: v.lot.trim(), rate, rateN, rateU, full, notes: v.notes.trim(), created: it.created || now, updated: now };
       if (isNew) { const r = qty > 0 ? applyMove({ ...base, qty: 0 }, 'in', qty, t('Création de la fiche')) : { item: { ...base, qty: 0 } }; await commit(r.item, r.mv); }
       else if (qty !== it.qty) { const r = applyMove({ ...base, qty: it.qty }, 'fix', qty, t('Correction manuelle')); await commit(r.item, r.mv); }
       else await commit({ ...base, qty: it.qty });
@@ -127,7 +132,7 @@ function about() {
     <p><b>${t("StockDiab n'est pas un dispositif médical. Pour toute question relative à votre santé, contactez votre médecin.")}</b></p>
     <h3>${t('Mentions légales')}</h3>
     <p>${t('Éditeur : Fabien Beaumier, développeur indépendant. Contact :')} ${mail}</p>
-    ${P("Hébergement : Netlify, Inc. (netlify.com). L'hébergeur peut conserver des journaux techniques standard (par exemple l'adresse IP) lors du chargement de l'application.")}
+    ${P("Hébergement : GitHub, Inc. (GitHub Pages, github.com). L'hébergeur peut conserver des journaux techniques standard (par exemple l'adresse IP) lors du chargement de l'application.")}
     <h3>${t('Données personnelles')}</h3>
     ${P("Aucune donnée n'est collectée ni transmise à un serveur : vos articles, votre historique et vos ordonnances restent sur cet appareil, sans chiffrement : protégez votre téléphone par un verrouillage d'écran. Aucun compte, aucun suivi, aucune publicité. Seuls la langue et le thème choisis sont mémorisés localement. Le bouton « Buy me a coffee » ouvre un site tiers (PayPal), soumis à ses propres conditions.")}
     <h3>${t('Responsabilité')}</h3>
@@ -282,6 +287,7 @@ function render() {
     const list = moves.filter(x => (!hItem || x.itemId === hItem) && (!hType || x.type === hType)).sort((a, b) => b.at.localeCompare(a.at));
     m.innerHTML = `<label>${t('Article')}<select id="hi"><option value="">${t('Tous')}</option>${names.map(([id, n]) => `<option value="${esc(id)}" ${id === hItem ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
     <label>${t('Type')}<select id="ht"><option value="">${t('Tous')}</option>${Object.entries(TYPE).map(([k, v]) => `<option value="${k}" ${k === hType ? 'selected' : ''}>${t(v)}</option>`).join('')}</select></label>
+    ${moves.length ? `<button class="ghost danger big" data-a="clear-hist">${t("Effacer l'historique")}</button>` : ''}
     ${list.length ? list.map(x => `<article class="card"><div class="top"><h3>${esc(x.name)}</h3><span class="tag">${t(TYPE[x.type])}</span></div><p class="small">${x.type === 'fix' ? t('Correction') : (x.type === 'in' ? '+' : '−') + x.qty} · ${x.before} → ${x.after} · ${new Date(x.at).toLocaleString(locale())}${x.note ? ' · ' + esc(x.note) : ''}</p></article>`).join('') : `<p class="small">${t('Aucun mouvement.')}</p>`}`;
     $('#hi').onchange = e => { hItem = e.target.value; render(); }; $('#ht').onchange = e => { hType = e.target.value; render(); };  } else {
     m.innerHTML = `<h2>${t('Langue')}</h2><select id="lang" aria-label="${t('Langue')}">${Object.entries(LANGS).map(([k, v]) => `<option value="${k}" ${k === getLang() ? 'selected' : ''}>${v}</option>`).join('')}</select>
@@ -322,6 +328,8 @@ document.addEventListener('click', async e => {
       case 'import': { const fi = $('#file'); fi.onchange = async () => { try { const o = validateBackup(JSON.parse(await fi.files[0].text()));
           if (!confirm(t('Remplacer toutes les données actuelles par cette sauvegarde ({a} articles, {m} mouvements, {d} ordonnances) ?', { a: o.items.length, m: o.moves.length, d: (o.docs || []).length }))) return;
           await replaceAll(o.items, o.moves, await Promise.all((o.docs || []).map(async d => ({ ...d, pages: await Promise.all(d.pages.map(fromDataURL)) }))), o.alarms || []); } catch (x) { alert(x instanceof SyntaxError ? t('Sauvegarde invalide : fichier illisible.') : em(x)); } }; fi.click(); break; }
+      case 'clear-hist': if (confirm(t("Effacer tout l'historique des mouvements ? Les articles et les quantités sont conservés. Action irréversible."))) {
+        await write((i, m) => m.clear()); moves = []; hItem = ''; hType = ''; render(); } break;
       case 'wipe': if (confirm(t('Effacer TOUTES les données (articles, historique et ordonnances) ? Action irréversible.'))) await replaceAll([], []); break;
     }
   } catch (x) { alert(em(x)); }
