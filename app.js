@@ -44,7 +44,7 @@ function qtyDialog(a, type) {
     F(t(out ? 'Quantité à retirer' : 'Quantité reçue'), 'n', 1, 'number', 'min="1" step="1" inputmode="numeric" required') + F(t('Note (facultatif)'), 'note'),
     v => move(a, type, v.n, v.note), out ? 'Retirer' : 'Ajouter');
 }
-const RATE_LBL = { day: 'jour', month: 'mois', year: 'année' };
+const RATE_LBL = { day: 'jour', week: 'semaine', month: 'mois', year: 'année' };
 function rateField(it) { // « [nombre] par [jour | mois | année] » : le nombre est libre, la période se choisit dans la liste
   const n = it.rateN ?? (it.rate || ''), u = it.rateU || 'day';
   return `<label>${t('Consommation moyenne (facultatif, estimation)')}</label><div class="row rate"><input name="rateN" type="number" min="0" step="any" inputmode="decimal" value="${esc(n)}" aria-label="${esc(t('Quantité consommée'))}"><span class="per">${t('par')}</span><select name="rateU" aria-label="${esc(t('Fréquence'))}">${Object.entries(RATE_LBL).map(([k, l]) => `<option value="${k}" ${k === u ? 'selected' : ''}>${t(l)}</option>`).join('')}</select></div>`;
@@ -264,7 +264,7 @@ function render() {
   const m = $('#main');
   if (view === 'home') {
     const low = items.filter(a => status(a) !== 'ok').sort(byName), ex = items.filter(a => expiry(a));
-    m.innerHTML = `<div><button class="ghost" data-a="alarms">${t('Mes alarmes')}</button></div><div class="stats"><div><b>${items.length}</b>${t('références')}</div><div><b>${items.filter(a => status(a) === 'low').length}</b>${t('sous le seuil')}</div><div><b>${items.filter(a => a.qty <= 0).length}</b>${t('épuisés')}</div></div>
+    m.innerHTML = `<div><button class="ghost big" data-a="alarms">${t('Mes alarmes')}</button></div><div class="stats"><div><b>${items.length}</b>${t('références')}</div><div><b>${items.filter(a => status(a) === 'low').length}</b>${t('sous le seuil')}</div><div><b>${items.filter(a => a.qty <= 0).length}</b>${t('épuisés')}</div></div>
     <h2>${t('À racheter')}</h2>${low.length ? low.map(card).join('') : `<p class="small">${t('Aucun article à réapprovisionner.')}</p>`}
     ${ex.length ? `<h2>${t('Péremption')}</h2>${ex.map(card).join('')}` : ''}
     `;

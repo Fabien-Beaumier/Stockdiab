@@ -12,7 +12,7 @@ export const expiry = (a, now = Date.now()) => {
 export const refQty = (a, moves = []) => a.full > 0 ? a.full : Math.max(a.qty, ...moves.filter(m => m.itemId === a.id).map(m => m.after));
 export const pct = (a, moves) => { const r = refQty(a, moves); return r > 0 ? Math.min(100, Math.round(a.qty / r * 100)) : 0; };
 // Fréquences de la saisie « N par … » : nombre de jours par période (année moyenne de 365,25 j).
-export const RATE_UNITS = { day: 1, month: 365.25 / 12, year: 365.25 };
+export const RATE_UNITS = { day: 1, week: 7, month: 365.25 / 12, year: 365.25 };
 export const ratePerDay = (n, u = 'day') => { n = Number(n); return n > 0 && RATE_UNITS[u] ? n / RATE_UNITS[u] : 0; };
 export const daysLeft = a => a.rate > 0 ? Math.floor(a.qty / a.rate) : null;
 export const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2));

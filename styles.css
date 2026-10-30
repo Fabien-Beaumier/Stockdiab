@@ -27,3 +27,36 @@ dialog{background:var(--c);color:var(--t);border:0;border-radius:14px;width:min(
 .chips{padding-bottom:14px;scrollbar-width:thin}dialog{max-height:88vh;overflow:auto}dialog h3{margin:14px 0 2px;font-size:1rem}dialog a{color:var(--g)}
 .thumbs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.thumb{position:relative;width:72px;height:96px;border:1px solid var(--b);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center}.thumb img{width:100%;height:100%;object-fit:cover}.thumb button{position:absolute;top:2px;right:2px;width:30px;height:30px;min-height:0;padding:0;border-radius:50%;border:0;background:#000a;color:#fff}.thumbimg{width:100%;max-height:160px;object-fit:cover;border-radius:8px;margin:6px 0}img.page{width:100%;border-radius:8px;margin:8px 0}
 .rate{flex-wrap:nowrap;align-items:center;margin-top:0}.rate input{flex:2}.rate select{flex:3}.rate .per{flex:0 0 auto;color:var(--m)}
+
+/* ---- v10 : interface plus conviviale ---- */
+html{-webkit-tap-highlight-color:transparent}
+body{line-height:1.45}
+header{position:sticky;top:0;z-index:5;box-shadow:0 2px 8px #0003;padding:16px}
+h1{font-size:1.3rem;letter-spacing:.2px}h2{font-size:1.15rem;margin:22px 0 10px}
+main{padding:14px 14px 20px}
+.card{border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 1px 3px #0000001a}
+.card .top h3{font-size:1.05rem}.qty{font-size:1.6rem;margin:6px 0}.small{margin:4px 0;line-height:1.4}
+.card .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.card .row>button:last-child:nth-child(odd){grid-column:1/-1}
+.row{gap:10px}
+.primary,.ghost,.card button{min-height:50px;border-radius:14px;font-weight:600;cursor:pointer}
+.ghost,.card button{border-color:var(--b)}
+.card button:disabled{opacity:.45}
+.big{margin:8px 0}
+.stats{gap:10px}.stats div{border-radius:16px;padding:14px 8px;font-size:.85rem;color:var(--m)}.stats b{color:var(--t);font-size:1.7rem}
+.bar{height:12px}
+input,select,textarea{min-height:48px;padding:10px 12px;border-radius:12px}
+input:focus,select:focus,textarea:focus{outline:3px solid color-mix(in srgb,var(--g) 40%,transparent);outline-offset:0;border-color:var(--g)}
+label{margin:12px 0;font-weight:500}
+dialog{border-radius:20px;padding:20px;box-shadow:0 10px 40px #0005}dialog h2{margin-top:0}
+.chips button{min-height:44px;padding:0 16px;font-weight:500}
+nav{box-shadow:0 -2px 10px #0000001a;padding-bottom:env(safe-area-inset-bottom)}
+nav button{padding:16px 2px 14px;font-size:.8rem;transition:color .15s}
+.tag{padding:3px 10px;font-weight:600}
+/* Retour d'action : au toucher, le bouton rétrécit et s'assombrit */
+button,a.primary,.chips button,nav button{touch-action:manipulation;user-select:none;-webkit-user-select:none;transition:transform .12s ease,filter .12s ease,background-color .15s,color .15s}
+button:active:not(:disabled),a.primary:active{transform:scale(.94);filter:brightness(.78)}
+nav button:active{transform:scale(.9);filter:brightness(.7)}
+.thumb button:active{transform:scale(.85)}
+@media (hover:hover){button:hover:not(:disabled):not(:active),a.primary:hover{filter:brightness(.93)}}
+@media (prefers-reduced-motion:reduce){button,a.primary{transition:filter .12s}button:active:not(:disabled),a.primary:active,nav button:active{transform:none}}
