@@ -37,7 +37,7 @@ Paramètres > Thème : automatique (suit le réglage du téléphone), clair ou s
 Modifiez la constante V dans sw.js (stockdiab-v7, etc.) à chaque nouvelle version. L'appli est chargée réseau d'abord (toujours à jour en ligne), puis depuis le cache hors connexion, et la page se recharge seule une fois quand une nouvelle version s'active. Les données IndexedDB ne sont jamais effacées par une mise à jour.
 
 ## Sauvegarde
-Accueil > Exporter (JSON). Vider les données de Chrome, désinstaller l'app ou perdre le téléphone supprime les données : exportez régulièrement.
+Paramètres > Sauvegarde > Exporter (JSON). Vider les données de Chrome, désinstaller l'app ou perdre le téléphone supprime les données : exportez régulièrement.
 
 ## Dépendances
 zxing-wasm 3.1.6 (embarquée dans vendor/). Aucune autre.
@@ -49,6 +49,9 @@ zxing-wasm 3.1.6 (embarquée dans vendor/). Aucune autre.
 
 ## Soutien
 Paramètres > Buy me a coffee ouvre paypal.me/FabienBeaumier (seul lien externe de l'application, utilisé uniquement au clic).
+
+## À propos et mentions légales
+Paramètres > À propos : présentation, contact, mentions légales, données personnelles, responsabilité. L'année du copyright se met à jour automatiquement. Si vous changez d'hébergeur, modifiez la ligne « Hébergement » dans app.js (fonction about) et ses traductions dans i18n.js.
 
 ## Limites connues
 - Un lot = une fiche : pour des lots à péremptions différentes, créez une fiche par lot (même nom, codes-barres distincts ou vides). Un même code-barres ne peut servir qu'à une fiche.

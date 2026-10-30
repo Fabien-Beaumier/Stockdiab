@@ -8,7 +8,7 @@ const em = x => t(x.tpl || x.message, x.vars); // message d'erreur traduit
 const $ = s => document.querySelector(s);
 const LBL = { ok: 'Stock suffisant', low: 'Stock faible', out: 'Épuisé' };
 const TYPE = { in: 'Entrée', out: 'Sortie', fix: 'Correction' };
-const NAV = { home: 'Accueil', stock: 'Mon stock', add: 'Ajouter', hist: 'Historique', settings: 'Paramètres' };
+const NAV = { stock: 'Mon stock', add: 'Ajouter', home: 'Accueil', hist: 'Historique', settings: 'Paramètres' }; // ordre d'affichage de la barre
 const UNITS = ['pièce','boîte','stylo','fiole','cartouche','cathéter','réservoir','capteur','pile','bandelette'];
 let db, items = [], moves = [], view = 'home', flt = 'all', q = '', hItem = '', hType = '', busy = false;
 
@@ -87,7 +87,7 @@ function grab(src, w, h, max) { const k = Math.min(1, max / Math.max(w, h)); cv.
 function scanner() {
   let stream, done = false, timer;
   const d = modal(t('Scanner un article'), `<video id="cam" playsinline muted></video><p class="small">${t('Pointez la caméra arrière vers le code (code-barres, QR ou Datamatrix) et gardez-la nette.')}</p>
-    <label>${t('Ou prenez une photo du code')}<input type="file" id="photo" accept="image/*" capture="environment"></label>` + F(t('Saisie manuelle du code'), 'code', '', 'text', 'inputmode="numeric"'),
+    <label>${t('Ou choisissez une image du code (galerie ou fichiers)')}<input type="file" id="photo" accept="image/*"></label>` + F(t('Saisie manuelle du code'), 'code', '', 'text', 'inputmode="numeric"'),
     async v => { if (!v.code.trim()) throw err('Saisissez un code ou scannez-le.'); found(v.code.trim()); }, 'Valider le code');
   const stop = () => { clearTimeout(timer); stream?.getTracks().forEach(x => x.stop()); };
   const found = raw => { if (done) return; done = true; stop(); d.close();
@@ -118,6 +118,27 @@ function scanner() {
   } catch { fail(); } })();
 }
 
+// ---------- À propos / mentions légales ----------
+function about() {
+  const d = document.createElement('dialog'), mail = '<a href="mailto:Fabien.beaumier@gmail.com">Fabien.beaumier@gmail.com</a>', P = k => `<p>${t(k)}</p>`;
+  d.innerHTML = `<h2>${t('À propos')}</h2>
+    ${P("StockDiab est une application permettant de gérer facilement les stocks liés au traitement d'un diabète de type 1 ou 2.")}
+    <p>${t("Je développe ce projet seul et je suis ouvert aux suggestions de fonctionnalités. N'hésitez pas à me contacter :")} ${mail}</p>
+    <p><b>${t("StockDiab n'est pas un dispositif médical. Pour toute question relative à votre santé, contactez votre médecin.")}</b></p>
+    <h3>${t('Mentions légales')}</h3>
+    <p>${t('Éditeur : Fabien Beaumier, développeur indépendant. Contact :')} ${mail}</p>
+    ${P("Hébergement : Netlify, Inc. (netlify.com). L'hébergeur peut conserver des journaux techniques standard (par exemple l'adresse IP) lors du chargement de l'application.")}
+    <h3>${t('Données personnelles')}</h3>
+    ${P("Aucune donnée n'est collectée ni transmise à un serveur : vos articles et votre historique restent sur cet appareil. Aucun compte, aucun suivi, aucune publicité. Seuls la langue et le thème choisis sont mémorisés localement. Le bouton « Buy me a coffee » ouvre un site tiers (PayPal), soumis à ses propres conditions.")}
+    <h3>${t('Responsabilité')}</h3>
+    ${P("L'application est fournie « en l'état », sans garantie. Vérifiez vous-même vos quantités, lots et dates de péremption : les estimations sont indicatives. L'éditeur n'est pas responsable des pertes de données (exportez régulièrement une sauvegarde) ni des décisions prises à partir de l'application.")}
+    <h3>${t('Composants tiers')}</h3>
+    ${P("Lecteur de codes : zxing-wasm, basé sur ZXing-C++ (logiciels libres).")}
+    <p class="small">© ${new Date().getFullYear()} Fabien Beaumier</p>
+    <div class="row"><button class="primary" type="button">${t('Fermer')}</button></div>`;
+  document.body.append(d); d.showModal(); d.querySelector('button').onclick = () => d.close(); d.onclose = () => d.remove();
+}
+
 // ---------- Vues ----------
 function bar(a) { // barre : quantité restante / stock de référence
   const p = pct(a, moves), r = refQty(a, moves);
@@ -140,9 +161,7 @@ function render() {
     m.innerHTML = `<div class="stats"><div><b>${items.length}</b>${t('références')}</div><div><b>${items.filter(a => status(a) === 'low').length}</b>${t('sous le seuil')}</div><div><b>${items.filter(a => a.qty <= 0).length}</b>${t('épuisés')}</div></div>
     <h2>${t('À racheter')}</h2>${low.length ? low.map(card).join('') : `<p class="small">${t('Aucun article à réapprovisionner.')}</p>`}
     ${ex.length ? `<h2>${t('Péremption')}</h2>${ex.map(card).join('')}` : ''}
-    <h2>${t('Sauvegarde')}</h2><p class="small">${t("Les données sont stockées uniquement sur ce téléphone. Vider les données du navigateur, désinstaller l'application ou perdre le téléphone les efface. Exportez une sauvegarde régulièrement.")}</p>
-    <div class="row"><button class="primary" data-a="export">${t('Exporter (JSON)')}</button><button class="ghost" data-a="import">${t('Restaurer…')}</button></div><button class="ghost danger big" data-a="wipe">${t('Effacer toutes les données')}</button>
-    <input type="file" id="file" accept="application/json,.json" hidden>`;
+    `;
   } else if (view === 'stock') {
     const k = q.toLowerCase();
     const list = items.filter(a => (!k || [a.name, a.cat, a.barcode].some(x => (x || '').toLowerCase().includes(k))) &&
@@ -163,6 +182,10 @@ function render() {
     $('#hi').onchange = e => { hItem = e.target.value; render(); }; $('#ht').onchange = e => { hType = e.target.value; render(); };  } else {
     m.innerHTML = `<h2>${t('Langue')}</h2><select id="lang" aria-label="${t('Langue')}">${Object.entries(LANGS).map(([k, v]) => `<option value="${k}" ${k === getLang() ? 'selected' : ''}>${v}</option>`).join('')}</select>
     <h2>${t('Thème')}</h2><select id="theme" aria-label="${t('Thème')}">${[['', 'Automatique (système)'], ['light', 'Clair'], ['dark', 'Sombre']].map(([k, l]) => `<option value="${k}" ${k === getTheme() ? 'selected' : ''}>${t(l)}</option>`).join('')}</select>
+    <h2>${t('Sauvegarde')}</h2><p class="small">${t("Les données sont stockées uniquement sur ce téléphone. Vider les données du navigateur, désinstaller l'application ou perdre le téléphone les efface. Exportez une sauvegarde régulièrement.")}</p>
+    <div class="row"><button class="primary" data-a="export">${t('Exporter (JSON)')}</button><button class="ghost" data-a="import">${t('Restaurer…')}</button></div><button class="ghost danger big" data-a="wipe">${t('Effacer toutes les données')}</button>
+    <input type="file" id="file" accept="application/json,.json" hidden>
+    <h2>${t('À propos')}</h2><button class="ghost big" data-a="about">${t('À propos')}</button>
     <h2>${t('Soutenir le projet')}</h2><a class="primary big" href="https://paypal.me/FabienBeaumier" target="_blank" rel="noopener noreferrer">Buy me a coffee</a>`;
     $('#lang').onchange = e => { setLang(e.target.value); render(); };
     $('#theme').onchange = e => setTheme(e.target.value);
@@ -181,6 +204,7 @@ document.addEventListener('click', async e => {
       case 'out': case 'in': qtyDialog(a, b.dataset.a); break;
       case 'edit': itemForm(a); break;
       case 'scan': scanner(); break;
+      case 'about': about(); break;
       case 'new': itemForm(); break;
       case 'export': { const blob = new Blob([JSON.stringify({ app: 'stockdiab', version: 1, exported: new Date().toISOString(), items, moves }, null, 1)], { type: 'application/json' });
         const l = document.createElement('a'); l.href = URL.createObjectURL(blob); l.download = `stockdiab-${new Date().toISOString().slice(0, 10)}.json`; l.click(); setTimeout(() => URL.revokeObjectURL(l.href), 5000); break; }
