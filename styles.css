@@ -60,3 +60,15 @@ nav button:active{transform:scale(.9);filter:brightness(.7)}
 .thumb button:active{transform:scale(.85)}
 @media (hover:hover){button:hover:not(:disabled):not(:active),a.primary:hover{filter:brightness(.93)}}
 @media (prefers-reduced-motion:reduce){button,a.primary{transition:filter .12s}button:active:not(:disabled),a.primary:active,nav button:active{transform:none}}
+
+/* ---- v11 : fiches réductibles ---- */
+.card .fh{margin:0;flex:1;min-width:0}
+.card button.fold{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:0;border:0;background:none;color:inherit;font:inherit;font-size:1.05rem;font-weight:700;text-align:left;border-radius:10px}
+.fold .nm{overflow:hidden;text-overflow:ellipsis}.folded .fold .nm{white-space:nowrap}
+.chev{display:inline-block;flex:0 0 auto;transition:transform .15s;color:var(--m)}
+.fold[aria-expanded="false"] .chev{transform:rotate(-90deg)}
+.card button.fold:active:not(:disabled){transform:scale(.97)}
+.card.folded{padding:8px 16px 12px;margin:8px 0}
+.card.folded .top{gap:12px}.card.folded .bar{margin:0}
+.cq{font-weight:700;white-space:nowrap}
+.foldall{min-height:44px;margin:4px 0 0;width:100%}

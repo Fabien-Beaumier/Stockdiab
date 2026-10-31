@@ -146,6 +146,8 @@ function about() {
 
 // ---------- Ordonnances (photos/PDF stockés localement dans IndexedDB, jamais envoyés) ----------
 let docs = [], urls = [], stockTab = 'items';
+let folded = new Set(); try { folded = new Set(JSON.parse(localStorage.getItem('sd-fold') || '[]')); } catch { /* stockage indisponible : tout reste déployé */ }
+const saveFold = () => { try { localStorage.setItem('sd-fold', JSON.stringify([...folded])); } catch { /* ignoré */ } };
 const toDataURL = b => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => ko(r.error); r.readAsDataURL(b); });
 const fromDataURL = u => fetch(u).then(r => r.blob());
 async function shrink(file) { // image -> JPEG réduit (1800 px max) ; PDF conservé tel quel
@@ -245,13 +247,15 @@ function alarmsDialog() {
 }
 
 // ---------- Vues ----------
-function bar(a) { // barre : quantité restante / stock de référence
+function bar(a, compact) { // barre : quantité restante / stock de référence
   const p = pct(a, moves), r = refQty(a, moves);
-  return `<div class="bar ${status(a)}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}" aria-label="${esc(t('{p} % du stock de référence ({r})', { p, r }))}"><span style="width:${p}%"></span></div><p class="small">${esc(t('{p} % du stock de référence ({r})', { p, r }))}</p>`;
+  return `<div class="bar ${status(a)}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}" aria-label="${esc(t('{p} % du stock de référence ({r})', { p, r }))}"><span style="width:${p}%"></span></div>${compact ? '' : `<p class="small">${esc(t('{p} % du stock de référence ({r})', { p, r }))}</p>`}`;
 }
 function card(a) {
   const s = status(a), e = expiry(a), j = daysLeft(a);
-  return `<article class="card ${s}"><div class="top"><h3>${esc(a.name)}</h3><span class="tag ${s}">${t(LBL[s])}</span></div>
+  const fold = open => `<h3 class="fh"><button class="fold" data-a="tog" data-id="${a.id}" aria-expanded="${open}" title="${esc(t(open ? 'Réduire' : 'Déployer'))}"><span class="chev" aria-hidden="true">▾</span><span class="nm">${esc(a.name)}</span></button></h3>`;
+  if (folded.has(a.id)) return `<article class="card folded ${s}"><div class="top">${fold(false)}<span class="cq">${plural(a.qty, a.unit)}</span></div>${bar(a, true)}</article>`;
+  return `<article class="card ${s}"><div class="top">${fold(true)}<span class="tag ${s}">${t(LBL[s])}</span></div>
   <p class="qty">${plural(a.qty, a.unit)}</p>${bar(a)}<p class="small">${esc(a.cat)}${a.cat ? ' · ' : ''}${t("seuil d'alerte : {n}", { n: a.min })}${a.barcode ? ' · ' + t('code {c}', { c: esc(a.barcode) }) : ''}</p>
   ${a.exp ? `<p class="small">${t('Péremption : {d}', { d: esc(a.exp) })}${e === 'expired' ? t(' — PÉRIMÉ') : e === 'soon' ? t(' — bientôt périmé (moins de 30 jours)') : ''}${a.lot ? ' · ' + t('lot {l}', { l: esc(a.lot) }) : ''}</p>` : a.lot ? `<p class="small">${t('lot {l}', { l: esc(a.lot) })}</p>` : ''}
   ${j !== null ? `<p class="small">${t('Estimation indicative : environ {n} jour(s) de stock', { n: j })}</p>` : ''}${a.notes ? `<p class="small">${esc(a.notes)}</p>` : ''}
@@ -277,6 +281,7 @@ function render() {
       (flt === 'all' || (flt === 'low' && status(a) === 'low') || (flt === 'out' && a.qty <= 0) || (flt === 'exp' && expiry(a)))).sort(byName);
     m.innerHTML = `${segBar()}<label>${t('Rechercher (nom, catégorie, code-barres)')}<input id="q" type="search" value="${esc(q)}"></label>
     <div class="chips">${[['all','Tous'],['low','Stock faible'],['out','Épuisés'],['exp','Péremption proche']].map(([v, l]) => `<button data-f="${v}" aria-pressed="${flt === v}">${t(l)}</button>`).join('')}</div>
+    ${list.length ? `<button class="ghost foldall" data-a="tog-all">${t(list.every(a => folded.has(a.id)) ? 'Tout déployer' : 'Tout réduire')}</button>` : ''}
     ${list.length ? list.map(card).join('') : `<p class="small">${t('Aucun article.')}</p>`}`;
     const qi = $('#q'); qi.oninput = () => { q = qi.value; const p = qi.selectionStart; render(); const n = $('#q'); n.focus(); n.setSelectionRange(p, p); };
   } else if (view === 'add') {
@@ -311,6 +316,8 @@ document.addEventListener('click', async e => {
   const a = items.find(x => x.id === b.dataset.id);
   try {
     switch (b.dataset.a) {
+      case 'tog': folded.has(b.dataset.id) ? folded.delete(b.dataset.id) : folded.add(b.dataset.id); saveFold(); render(); break;
+      case 'tog-all': { const ids = [...document.querySelectorAll('#main [data-a="tog"]')].map(x => x.dataset.id); const all = ids.every(i => folded.has(i)); ids.forEach(i => all ? folded.delete(i) : folded.add(i)); saveFold(); render(); break; }
       case 'q1': if (confirm(t('Retirer 1 {u} de « {name} » ?', { u: a.unit, name: a.name }))) { busy = true; try { await move(a, 'out', 1, t('Retrait rapide')); } finally { busy = false; } } break;
       case 'out': case 'in': qtyDialog(a, b.dataset.a); break;
       case 'edit': itemForm(a); break;
