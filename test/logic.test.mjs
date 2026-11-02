@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { searchManual, highlight, CHAPTERS, chaptersFor, tagsFor } from '../manual.js';
 import { applyMove, status, expiry, daysLeft, validateBackup, lastOcc, nextOcc, toICS, esc, parseGS1, norm, pct, refQty, ratePerDay } from '../logic.js';
 const mk = (q, min = 2, extra = {}) => ({ id: 'a', name: 'Cathéter', qty: q, min, unit: 'cathéter', ...extra });
 let n = 0; const t = (name, fn) => { fn(); console.log('OK  ', name); n++; };
@@ -48,4 +49,39 @@ t('export calendrier (.ics)', () => { const s = toICS([AL], new Date('2026-10-30
 t('sauvegarde avec alarmes', () => { const base = { app: 'stockdiab', items: [], moves: [] };
   assert.equal(validateBackup({ ...base, alarms: [AL] }).alarms.length, 1);
   for (const alarms of [[{ ...AL, every: 0 }], [{ ...AL, time: '8h' }], [{ ...AL, start: 'demain' }], 'x']) assert.throws(() => validateBackup({ ...base, alarms })); });
+t('notice : recherche par mots, sans accents', () => {
+  assert.equal(searchManual('').length, CHAPTERS.length);
+  assert.equal(searchManual('alarme')[0].id, 'alarmes');
+  assert.ok(searchManual('parametres').some(c => c.id === 'parametres'));
+  assert.equal(searchManual('ajout')[0].id, 'ajout');
+  assert.ok(searchManual('sauvegarde exporter').some(c => c.id === 'sauvegarde'));
+  assert.equal(searchManual('zzzxyz').length, 0);
+  assert.equal(new Set(CHAPTERS.map(c => c.id)).size, CHAPTERS.length);
+});
+t('notice : surbrillance hors balises', () => {
+  assert.equal(highlight('<b>Alarme</b> sonne', 'alarme'), '<b><mark>Alarme</mark></b> sonne');
+  assert.equal(highlight('<b class="alarme">x</b>', 'alarme'), '<b class="alarme">x</b>');
+  assert.equal(highlight('Paramètres', 'parametres'), '<mark>Paramètres</mark>');
+});
+
+t('notice : traductions complètes et de même structure', () => {
+  const cnt = (h, r) => (h.match(r) || []).length;
+  for (const lang of ['en', 'es']) {
+    const ch = chaptersFor(lang);
+    assert.equal(ch.length, CHAPTERS.length);
+    ch.forEach((c, i) => {
+      const f = CHAPTERS[i];
+      assert.notEqual(c.html, f.html, lang + ' ' + c.id + ' non traduit');
+      assert.notEqual(c.title, f.title, lang + ' ' + c.id + ' titre non traduit');
+      for (const r of [/<p>/g, /<ul>/g, /<li>/g]) assert.equal(cnt(c.html, r), cnt(f.html, r), lang + ' ' + c.id + ' structure ' + r);
+      assert.ok(!/&\w+;/.test(c.html), lang + ' ' + c.id + ' entité HTML');
+    });
+    tagsFor(lang).forEach(k => assert.ok(searchManual(k, ch).length > 0, lang + ' mot-clé sans résultat : ' + k));
+  }
+  assert.equal(searchManual('alarm', chaptersFor('en'))[0].id, 'alarmes');
+  assert.equal(searchManual('alarma', chaptersFor('es'))[0].id, 'alarmes');
+  assert.equal(searchManual('escaner', chaptersFor('es'))[0].id, 'scanner');
+  assert.equal(searchManual('alarme', chaptersFor('en'))[0].id, 'alarmes');
+});
+
 console.log(`\n${n} tests réussis`);
