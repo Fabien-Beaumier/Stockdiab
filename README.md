@@ -5,6 +5,8 @@ PWA de gestion de stock de matériel personnel. Interface en français, données
 ## Structure
 - index.html, styles.css, app.js (interface), logic.js (règles de stock, testées)
 - sw.js (cache hors ligne), manifest.webmanifest, icons/
+- manual-i18n.js (traductions anglaise et espagnole de la notice)
+- manual.js (notice d'utilisation : chapitres + recherche ; pour modifier la notice, éditer CHAPTERS)
 - decode.js (prétraitement des images du scanner), install.js, i18n.js
 - vendor/ : zxing-wasm 3.1.6 (lecteur de codes embarqué, aucun CDN)
 - test/logic.test.mjs
@@ -68,3 +70,6 @@ Paramètres > À propos : présentation, contact, mentions légales, données pe
 - Pas d'icônes dans l'interface (texte seul) ; icône d'application simple.
 - Reconnaissance des codes-barres dépendante de la lumière et de la caméra ; saisie manuelle toujours disponible.
 - Interface non testée sur appareil réel à ce stade (voir tests dans la réponse).
+
+## Notice d'utilisation
+Paramètres > Notice d'utilisation : chapitres repliables, recherche par mots (sans tenir compte des accents ; tous les mots doivent figurer dans le chapitre) et mots-clés rapides. Le contenu français est dans manual.js, les versions anglaise et espagnole dans manual-i18n.js (mêmes chapitres, mêmes id). Les mots-clés français restent cherchables dans toutes les langues.

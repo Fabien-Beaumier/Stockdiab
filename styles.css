@@ -72,3 +72,14 @@ nav button:active{transform:scale(.9);filter:brightness(.7)}
 .card.folded .top{gap:12px}.card.folded .bar{margin:0}
 .cq{font-weight:700;white-space:nowrap}
 .foldall{min-height:44px;margin:4px 0 0;width:100%}
+
+/* ---- v12 : notice d'utilisation ---- */
+.chap{background:var(--c);border:1px solid var(--b);border-radius:16px;margin:10px 0;overflow:hidden}
+.chap summary{list-style:none;cursor:pointer;padding:14px 16px;min-height:48px;display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.02rem;transition:transform .12s,filter .12s}
+.chap summary::-webkit-details-marker{display:none}
+.chap summary::before{content:"▸";color:var(--m);transition:transform .15s}
+.chap[open] summary::before{transform:rotate(90deg)}
+.chap summary:active{transform:scale(.98);filter:brightness(.85)}
+.chapbody{padding:0 16px 14px;line-height:1.55}
+.chapbody p,.chapbody ul{margin:8px 0}.chapbody ul{padding-left:20px}.chapbody li{margin:6px 0}
+mark{background:#ffd54a;color:#1a1a1a;border-radius:4px;padding:0 2px}

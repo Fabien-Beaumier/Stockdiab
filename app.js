@@ -2,6 +2,7 @@ import { esc, status, expiry, daysLeft, applyMove, validateBackup, uid, err, nor
 import './install.js';
 import { scanImage } from './decode.js';
 import { t, LANGS, getLang, setLang, locale } from './i18n.js';
+import { manualHTML, tagsFor } from './manual.js';
 const getTheme = () => { try { return localStorage.getItem('sd-theme') || ''; } catch { return ''; } };
 const setTheme = v => { const r = document.documentElement; v ? r.dataset.theme = v : delete r.dataset.theme; try { v ? localStorage.setItem('sd-theme', v) : localStorage.removeItem('sd-theme'); } catch {} };
 const em = x => t(x.tpl || x.message, x.vars); // message d'erreur traduit
@@ -145,7 +146,7 @@ function about() {
 }
 
 // ---------- Ordonnances (photos/PDF stockés localement dans IndexedDB, jamais envoyés) ----------
-let docs = [], urls = [], stockTab = 'items';
+let docs = [], urls = [], stockTab = 'items', mq = '';
 let folded = new Set(); try { folded = new Set(JSON.parse(localStorage.getItem('sd-fold') || '[]')); } catch { /* stockage indisponible : tout reste déployé */ }
 const saveFold = () => { try { localStorage.setItem('sd-fold', JSON.stringify([...folded])); } catch { /* ignoré */ } };
 const toDataURL = b => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => ko(r.error); r.readAsDataURL(b); });
@@ -264,7 +265,7 @@ function card(a) {
 const byName = (a, b) => a.name.localeCompare(b.name, 'fr');
 function render() {
   urls.forEach(u => URL.revokeObjectURL(u)); urls = [];
-  document.querySelectorAll('nav button').forEach(b => { b.textContent = t(NAV[b.dataset.v]); b.setAttribute('aria-current', b.dataset.v === view ? 'page' : 'false'); });
+  document.querySelectorAll('nav button').forEach(b => { b.textContent = t(NAV[b.dataset.v]); b.setAttribute('aria-current', b.dataset.v === (view === 'manual' ? 'settings' : view) ? 'page' : 'false'); });
   const m = $('#main');
   if (view === 'home') {
     const low = items.filter(a => status(a) !== 'ok').sort(byName), ex = items.filter(a => expiry(a));
@@ -294,12 +295,18 @@ function render() {
     <label>${t('Type')}<select id="ht"><option value="">${t('Tous')}</option>${Object.entries(TYPE).map(([k, v]) => `<option value="${k}" ${k === hType ? 'selected' : ''}>${t(v)}</option>`).join('')}</select></label>
     ${moves.length ? `<button class="ghost danger big" data-a="clear-hist">${t("Effacer l'historique")}</button>` : ''}
     ${list.length ? list.map(x => `<article class="card"><div class="top"><h3>${esc(x.name)}</h3><span class="tag">${t(TYPE[x.type])}</span></div><p class="small">${x.type === 'fix' ? t('Correction') : (x.type === 'in' ? '+' : '−') + x.qty} · ${x.before} → ${x.after} · ${new Date(x.at).toLocaleString(locale())}${x.note ? ' · ' + esc(x.note) : ''}</p></article>`).join('') : `<p class="small">${t('Aucun mouvement.')}</p>`}`;
-    $('#hi').onchange = e => { hItem = e.target.value; render(); }; $('#ht').onchange = e => { hType = e.target.value; render(); };  } else {
+    $('#hi').onchange = e => { hItem = e.target.value; render(); }; $('#ht').onchange = e => { hType = e.target.value; render(); };  } else if (view === 'manual') {
+    m.innerHTML = `<button class="ghost big" data-a="manual-back">${t('← Paramètres')}</button><h2>${t("Notice d'utilisation")}</h2>
+    <label>${t('Rechercher dans la notice')}<input id="mq" type="search" value="${esc(mq)}" placeholder="${esc(t('ajout, alarme, paramètres…'))}" autocomplete="off"></label>
+    <div class="chips">${tagsFor().map(k => `<button data-mt="${esc(k)}" aria-pressed="${mq.trim().toLowerCase() === k}">${esc(k)}</button>`).join('')}</div><div id="mres">${manualHTML(mq)}</div>`;
+    $('#mq').oninput = e => { mq = e.target.value; $('#mres').innerHTML = manualHTML(mq); };
+  } else {
     m.innerHTML = `<h2>${t('Langue')}</h2><select id="lang" aria-label="${t('Langue')}">${Object.entries(LANGS).map(([k, v]) => `<option value="${k}" ${k === getLang() ? 'selected' : ''}>${v}</option>`).join('')}</select>
     <h2>${t('Thème')}</h2><select id="theme" aria-label="${t('Thème')}">${[['', 'Automatique (système)'], ['light', 'Clair'], ['dark', 'Sombre']].map(([k, l]) => `<option value="${k}" ${k === getTheme() ? 'selected' : ''}>${t(l)}</option>`).join('')}</select>
     <h2>${t('Sauvegarde')}</h2><p class="small">${t("Les données sont stockées uniquement sur ce téléphone. Vider les données du navigateur, désinstaller l'application ou perdre le téléphone les efface. Exportez une sauvegarde régulièrement.")}</p><p class="small">${t("L'export contient aussi vos ordonnances : conservez le fichier en lieu sûr.")}</p>
     <div class="row"><button class="primary" data-a="export">${t('Exporter (JSON)')}</button><button class="ghost" data-a="import">${t('Restaurer…')}</button></div><button class="ghost danger big" data-a="wipe">${t('Effacer toutes les données')}</button>
     <input type="file" id="file" accept="application/json,.json" hidden>
+    <button class="ghost big" data-a="manual">${t("Notice d'utilisation")}</button>
     <button class="ghost big" data-a="about">${t('À propos')}</button>
     <h2>${t('Soutenir le projet')}</h2><a class="primary big" href="https://paypal.me/FabienBeaumier" target="_blank" rel="noopener noreferrer">Buy me a coffee</a>`;
     $('#lang').onchange = e => { setLang(e.target.value); render(); };
@@ -312,6 +319,7 @@ document.addEventListener('click', async e => {
   const nav = e.target.closest('nav button'); if (nav) { view = nav.dataset.v; return render(); }
   const sg = e.target.closest('[data-s]'); if (sg) { stockTab = sg.dataset.s; return render(); }
   const f = e.target.closest('[data-f]'); if (f) { flt = f.dataset.f; return render(); }
+  const mt = e.target.closest('[data-mt]'); if (mt) { mq = mq.trim().toLowerCase() === mt.dataset.mt ? '' : mt.dataset.mt; return render(); }
   const b = e.target.closest('[data-a]'); if (!b || busy) return;
   const a = items.find(x => x.id === b.dataset.id);
   try {
@@ -322,6 +330,8 @@ document.addEventListener('click', async e => {
       case 'out': case 'in': qtyDialog(a, b.dataset.a); break;
       case 'edit': itemForm(a); break;
       case 'scan': scanner(); break;
+      case 'manual': mq = ''; view = 'manual'; render(); window.scrollTo(0, 0); break;
+      case 'manual-back': view = 'settings'; render(); window.scrollTo(0, 0); break;
       case 'about': about(); break;
       case 'alarms': alarmsDialog(); break;
       case 'doc-new': docForm(); break;
